@@ -1,0 +1,5 @@
+{
+    "name" : "three.js",
+    "subtitle" : "Export shader for three.js WebGL renderer (OpenGL ES 2.0)",
+    "use_template" : true
+}
