@@ -1,4 +1,4 @@
-require 'Editor/Evaluator/HLSLEvaluator'
+require 'Editor/Evaluator/GLSLEvaluator'
 
 -- Templates use lustache for rendering: https://github.com/Olivine-Labs/lustache
 
