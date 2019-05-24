@@ -115,6 +115,8 @@ THREE.{{name_no_spaces}}Shader = {
 	vertexShader: [
 
         "#define PHYSICAL",
+		"#define STANDARD",
+		
         "varying vec3 vViewPosition;",
         "#ifndef FLAT_SHADED",
         	"varying vec3 vNormal;",
@@ -181,6 +183,7 @@ THREE.{{name_no_spaces}}Shader = {
 	fragmentShader: [
 
         "#define PHYSICAL",
+        "#define STANDARD",
 
         "varying vec3 vViewPosition;",
 
@@ -227,8 +230,8 @@ THREE.{{name_no_spaces}}Shader = {
             {{/frag}}
 
             {{#physical}}
-            float roughnessFactor = input_roughness;
-            float metalnessFactor = input_metalness;
+            "float roughnessFactor = input_roughness;",
+            "float metalnessFactor = input_metalness;",
             {{/physical}}
 
             "#include <clipping_planes_fragment>",
