@@ -13,29 +13,69 @@ local INDEX_TEMPLATE =
 	</head>
 	<body>
 		<script src="js/three.js"></script>
+		<script src="js/loaders/OBJLoader.js"></script>
+        <script src="js/controls/OrbitControls.js"></script>
         <script src="js/shaders/{{name_no_spaces}}Shader.js"></script>
 		<script>
 			var scene = new THREE.Scene();
 			var camera = new THREE.PerspectiveCamera( 75, window.innerWidth/window.innerHeight, 0.1, 1000 );
 
 			var renderer = new THREE.WebGLRenderer();
+			renderer.setPixelRatio( window.devicePixelRatio );
+            renderer.debug.checkShaderErrors = true
+
 			renderer.setSize( window.innerWidth, window.innerHeight );
 			document.body.appendChild( renderer.domElement );
 
-			var geometry = new THREE.BoxGeometry( 1, 1, 1 );
+			var light = new THREE.AmbientLight( 0x404040 ); // soft white light
+            scene.add( light );
+
+            var sun = new THREE.DirectionalLight( 0xFFFFFF, 0.5 );
+            sun.position.y = 5
+            scene.add( sun )
+
+            var helper = new THREE.DirectionalLightHelper( sun, 1 );
+            scene.add( helper );
 
             var material = new THREE.ShaderMaterial( THREE.{{name_no_spaces}}Shader );
 
-			var cube = new THREE.Mesh( geometry, material );
-			scene.add( cube );
+            // instantiate a loader
+            var loader = new THREE.OBJLoader();
 
-			camera.position.z = 5;
+            // load a resource
+            loader.load(
+            	// resource URL
+            	'models/ShaderBall.obj',
+            	// called when resource is loaded
+            	function ( object ) {
+
+                    object.traverse(function ( child ) {
+                        if ( child.isMesh )
+                            child.material = material;
+                        });
+
+            		scene.add( object );
+            	},
+            	// called when loading is in progresses
+            	function ( xhr ) {
+            		console.log( ( xhr.loaded / xhr.total * 100 ) + '% loaded' );
+            	},
+            	// called when loading has errors
+            	function ( error ) {
+            		console.log( 'An error happened' );
+            	}
+            );
+
+            var controls = new THREE.OrbitControls( camera );
+
+            camera.position.z = 10;
+            camera.position.y = 10;
+            controls.update();
 
 			var animate = function () {
 				requestAnimationFrame( animate );
 
-				cube.rotation.x += 0.01;
-				cube.rotation.y += 0.01;
+                controls.update();
 
 				renderer.render( scene, camera );
 			};
