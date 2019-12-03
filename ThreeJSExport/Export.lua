@@ -116,7 +116,7 @@ THREE.{{name_no_spaces}}Shader = {
 
         "#define PHYSICAL",
 		"#define STANDARD",
-		
+
         "varying vec3 vViewPosition;",
         "#ifndef FLAT_SHADED",
         	"varying vec3 vNormal;",
@@ -262,7 +262,7 @@ THREE.{{name_no_spaces}}Shader = {
         	"gl_FragColor = vec4( outgoingLight, diffuseColor.a );",
             {{/physical}}
             {{#unlit}}
-            gl_FragColor = vec4( diffuseColor.rgb + emissive, diffuseColor.a );
+            "gl_FragColor = vec4( diffuseColor.rgb + emissive, diffuseColor.a );"
             {{/unlit}}
 
         	"#include <tonemapping_fragment>",
