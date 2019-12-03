@@ -1,47 +1,6 @@
-# Readme
+require 'Editor/Evaluator/HLSLEvaluator'
 
-## Shade-Plugins (Pro Version Only)
-
-Shade now supports custom export plugins. This is an experimental feature, allowing for custom export options of shaders to different platforms/engines.
-
-## Folder Structure
-All plugins must be placed in the Shade/Documents/Plugins folder within the Files app on your iOS device.
-
-Each plugin folder must have the following files/folders:
-
-- Export.lua (The main Lua script used to generate shaders)
-- Info.json (Information about your plugin)
-- Template (OPTIONAL, Folder containing any additional files required for your shader plugin)
-
-Custom export plugins are mainly designed with the intent to generate one or more text files, containing shader code and/or structured text-based data required by the target platform/engine. That said, you have access to an essentially arbitrary Lua execution environment to do whatever you want with.
-
-## Export API
-
-The Export API itself is a series of Lua classes and conventions used by Shade to interpret a shader graph and generate text. Most of the heavy lifting is done by a set of evaluators for each main shader language. Right now there is GLSL and HLSL, with more planned (i.e. Vulkan and Metal). It is possible to write new evaluators manually as well.
-
-Evaluators essentially contain all the atomic shader features required to transform a shader graph into shader code. `Atomic` in this case means indivisible shader features, such as retrieving vertex or fragment UVs, reading from the depth buffer, adding a uniform or material property, reading from a texture, converting between different coordinate spaces, etc.
-
-The base evaluator is essentially built using GLSL conventions, whereas the HLSL evaluator uses regular expressions to translate code on the fly. This works for most things but can run into some problems where simple regular expressions cannot properly interpret the syntactical differences. In these cases hand written HLSL is used instead.
-
-### Example of an export class for Unity Surface Shaders
-
-**Export.lua**
-
-The first line we import the HLSL evaluator class
-`require 'Editor/Evaluator/HLSLEvaluator'`
-
-Create a template string. Shade uses lustache (a Lua version of mustache) templates to generate shader code. The main reason for this is that lustache templates are somewhat simple, readable and flexible. There are no real restrictions as to how you implement your templates, just think of this as an example of best practices.
-
-See the lustache documentation for more details on how the templates work:
-https://github.com/Olivine-Labs/lustache
-
-Template view model data relates directly to shader structural data, such as properties, uniforms, the existence of special features (i.e. grab pass), blend modes, render queue options and other things. It's also possible to put Lua functions directly into the Export.model table to perform custom template rendering of specific view model data.
-
-In this example, anything labeled {{unity_*}} is generally a function that specifically takes some view model data and renders it in a unity specific way. This convention provides division of responsibility to make the exporter easier to write and maintain.
-
-ShaderLab (the format that Unity.shader files use) has specific syntax for various parts. The entire file is laid out here in the following template, including the name of the shader (accessed via `{{name}}` or `{{name_no_spaces}}`). Properties within the view model (one for each user-exposed shader property) are rendered as a list and passed on to the `{{unity_property}}` function to be converted into the correct ShaderLab syntax based on each individual properties.
-
-```
+-- Templates use lustache for rendering: https://github.com/Olivine-Labs/lustache
 local template =
 [[
 Shader "Shade/{{{name}}}"
@@ -222,28 +181,14 @@ Shader "Shade/{{{name}}}"
     }
 }
 ]]
-```
 
-Create a new export class, deriving from the evaluator for the shader dialect you want to use.
-
-Call `:addTemplate(filename, templateString)` to add a template generator for a given file using a template string.
-
-```
 UnityExport = class(HLSLEvaluator)
 
 function UnityExport:init()
     HLSLEvaluator.init(self)
     self:addTemplate("Unity.shader", template)
 end
-```
 
-Clear code. This is mainly boilerplate code to prepare the template viewModel for code generation. Do any specific initialisation here.
-
-Tags are used to store data for each part of the shader, allowing for flexible code generation. You can add new tags, these are just the default ones.
-
-In future this might be rolled into the base evaluator.
-
-```
 function UnityExport:clear()
     HLSLEvaluator.clear(self)
 
@@ -261,11 +206,7 @@ function UnityExport:clear()
         self.viewModel[k] = v
     end
 end
-```
 
-Mapping tables for various Unity specific naming conventions/features for surface shaders.
-
-```
 local SURFACE_OUTPUTS =
 {
     [TAG_INPUT_DIFFUSE] = "Albedo",
@@ -294,24 +235,9 @@ local UNITY_BLEND_MAP =
     [BLEND_MODE_ADDITIVE] = {"One", "One"},
     [BLEND_MODE_MULTIPLY] = {"DstColor", "Zero"},
 }
-```
 
-The static property `model` for your exporter is used to define a set of Lua functions that will be called by the lustache template generator when it encounters specific named template elements. So this is useful for properties, uniforms, blend modes, vertex and fragment/surface function outputs. You can use the data provided to correctly format strings for your specific platform.
-
-For example, `unity_property` handles rendering of ShaderLab property strings. Properties provide the following data:
-
-- type (can be FLOAT, VEC2, VEC3, VEC4, TEXTURE2D)
-- name
-- uniform_name (the uniform name, used in shader code directly)
-- options (additional property options)
-    - control (can be INPUT_CONTROL_SLIDER, INPUT_CONTROL_NUMBER)
-    - min
-    - max
-- default (the default value of this property)
-
-Use these to generate whatever property values you like. There can be multiple templates if properties exist in a separate file (i.e. a html, json or other file) to shader code itself.
-
-```
+-- Model can be used to render template tags with custom lua code
+-- Tags, such as uniforms and properties, contain data that must be processed into strings
 UnityExport.model =
 {
     -- Convert property data into unity property string
@@ -400,11 +326,8 @@ UnityExport.model =
         return string.format("Blend %s %s", blendOps[1], blendOps[2])
     end
 }
-```
 
-Here we have lookup tables for the various syntax elements required for a Unity surface shader. For instance, getting the main texcoord in the vertex function vs the fragment function.
-
-```
+-- Lookup tables for various shader syntax
 local UNITY_TEXCOORD =
 {
     [TAG_VERT] = "v.texcoord",
@@ -473,11 +396,9 @@ local UNITY_VIEW_DIR =
         [TANGENT_SPACE] = "normalize(IN.tangentViewDir)",
     }
 }
-```
 
-Here are the functions used to generate code for each of the syntactical elements of the Unity surface shader. These correspond to each of the evaluators main atomic shader elements. Sometimes a little bit of finesse is required to generate correct code.
 
-```
+-- Exporters require syntax for various primitive elements to be defined
 UnityExport.syntax =
 {
     uv = function(self, index) return UNITY_TEXCOORD[self:tag()] end,
@@ -489,6 +410,7 @@ UnityExport.syntax =
     end,
 
     normal = function(self, space)
+
         -- Exception for object/world space normals in surface shader (due to special behaviour when writing custom normals)
         if space == OBJECT_SPACE and self:tag() == TAG_FRAG then
             return string.format("normalize( mul( float4(%s , 0.0 ), unity_WorldToObject ).xyz )", self:normal(WORLD_SPACE))
@@ -577,22 +499,7 @@ UnityExport.syntax =
     parallax = function(self, uv)
         local tangentViewDir = self:viewDir(TANGENT_SPACE)
         return string.format("parallax(%s, %s)", uv, tangentViewDir)
-    end    
+    end
 }
-```
 
-**Info.json**
-
-Here's the info for the exporter, used by the UI to display a title and additional information. `use_template` indicates whether or not a template folder should be copied in to the exported shader.
-
-```
-{
-    "name" : "Unity (Surface Shader)",
-    "subtitle" : "Export Surface shader for the Unity Engine",
-    "use_template" : false
-}
-```
-
-**Template**
-
-The template folder is used to add any additional files that might be required for your shader, for example with Three.js, you could add the required javascript libraries and boilerplate CSS/HTML/JS files.
+return UnityExport

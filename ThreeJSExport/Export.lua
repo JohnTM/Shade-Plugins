@@ -346,7 +346,7 @@ local UNITY_BLEND_MAP =
 -- Tags, such as uniforms and properties, contain data that must be processed into strings
 ThreeJSExport.model =
 {
-    -- -- Convert property data into unity property string
+    -- Convert property data into three properties
     three_property = function(self)
 
         local valueType = nil
