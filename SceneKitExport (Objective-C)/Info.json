@@ -1,0 +1,5 @@
+{
+    "name" : "SceneKit (Objective-C)",
+    "subtitle" : "Export shader for SceneKit materials",
+    "use_template" : false
+}
