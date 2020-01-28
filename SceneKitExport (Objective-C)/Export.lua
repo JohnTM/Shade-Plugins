@@ -317,4 +317,4 @@ SceneKitExport.syntax =
     -- end
 }
 
-return ThreeJSExport
+return SceneKitExport
