@@ -85,12 +85,12 @@ end
 
 local SURFACE_OUTPUTS =
 {
-    [TAG_INPUT_DIFFUSE] = "Albedo",
-    [TAG_INPUT_EMISSION] = "Emission",
-    [TAG_INPUT_NORMAL] = "Normal",
-    [TAG_INPUT_OPACITY] = "Alpha",
-    [TAG_INPUT_SMOOTHNESS] = "Smoothness",
-    [TAG_INPUT_METALNESS] = "Metallic",
+    [TAG_INPUT_DIFFUSE] = "diffuse",
+    [TAG_INPUT_EMISSION] = "emission",
+    [TAG_INPUT_NORMAL] = "_normalTS",
+    [TAG_INPUT_OPACITY] = "transparent",
+    [TAG_INPUT_ROUGHNESS] = "roughness",
+    [TAG_INPUT_METALNESS] = "metalness",
 }
 
 local SCN_RENDER_QUEUE_MAP =
@@ -145,14 +145,14 @@ SceneKitExport.model =
 -- Lookup tables for various shader syntax
 local SCN_TEXCOORD =
 {
-    [TAG_VERT] = "???",
-    [TAG_FRAG] = "_surface.diffuseTexcoord"
+    [TAG_VERT] = "_geometry.texcoords",
+    [TAG_FRAG] = "_geometry.texcoords"
 }
 
 local SCN_COLOR =
 {
-    [TAG_VERT] = "???",
-    [TAG_FRAG] = "???"
+    [TAG_VERT] = "_geometry.color",
+    [TAG_FRAG] = "_geometry.color"
 }
 
 local SCN_POSITION =
@@ -167,7 +167,7 @@ local SCN_POSITION =
 
     [TAG_FRAG] =
     {
-        [OBJECT_SPACE] = "???",
+        [OBJECT_SPACE] = "scn_node.inverseModelTransform * vec4(_surface.position, 1.0)",
         [VIEW_SPACE] = "???",
         [WORLD_SPACE] = "???",
         [TANGENT_SPACE] = "???",
@@ -216,7 +216,9 @@ local SCN_VIEW_DIR =
 -- Exporters require syntax for various primitive elements to be defined
 SceneKitExport.syntax =
 {
-    uv = function(self, index) return SCN_TEXCOORD[self:tag()] end,
+    uv = function(self, index)
+		return SCN_TEXCOORD[self:tag()]..string.format("[%d]", (index and index or 1) - 1)
+	end,
 
     color = function(self, index) return SCN_COLOR[self:tag()] end,
 
