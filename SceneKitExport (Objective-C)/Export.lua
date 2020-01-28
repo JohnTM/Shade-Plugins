@@ -86,12 +86,12 @@ end
 
 local SURFACE_OUTPUTS =
 {
-    [TAG_INPUT_DIFFUSE] = function(self) string.format("diffuse = vec4(%s, 1.0)", self.code) end,
-    [TAG_INPUT_EMISSION] = function(self) string.format("emission = vec4(%s, 0.0)", self.code) end,
-    [TAG_INPUT_NORMAL] = function(self) string.format("_normalTS = %s", self.code) end,
-    [TAG_INPUT_OPACITY] = function(self) string.format("transparent = vec4(%s)", self.code) end,
-    [TAG_INPUT_ROUGHNESS] = function(self) string.format("roughness = %s", self.code) end,
-    [TAG_INPUT_METALNESS] = function(self) string.format("metalness = %s", self.code) end,
+    [TAG_INPUT_DIFFUSE] = function(self) return string.format("diffuse = vec4(%s, 1.0)", self.code) end,
+    [TAG_INPUT_EMISSION] = function(self) return string.format("emission = vec4(%s, 0.0)", self.code) end,
+    [TAG_INPUT_NORMAL] = function(self) return string.format("_normalTS = %s", self.code) end,
+    [TAG_INPUT_OPACITY] = function(self) return string.format("transparent = vec4(%s)", self.code) end,
+    [TAG_INPUT_ROUGHNESS] = function(self) return string.format("roughness = %s", self.code) end,
+    [TAG_INPUT_METALNESS] = function(self) return string.format("metalness = %s", self.code) end,
 }
 
 local SCN_RENDER_QUEUE_MAP =
