@@ -49,7 +49,7 @@ local SHADER_TEMPLATE_M =
 		""
 		{{#frag}}
         "{{{scn_surface_output}}}"
-		{{#frag}}
+		{{/frag}}
         };
     }
     return self;
