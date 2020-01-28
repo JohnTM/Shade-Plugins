@@ -78,19 +78,20 @@ function SceneKitExport:clear()
         [TAG_FRAG_FUNCS] = {}
     }
 
-    for k,v in pairs(self.model) do
+	for k,v in pairs(self.model) do
         self.viewModel[k] = v
     end
+
 end
 
 local SURFACE_OUTPUTS =
 {
-    [TAG_INPUT_DIFFUSE] = "diffuse",
-    [TAG_INPUT_EMISSION] = "emission",
-    [TAG_INPUT_NORMAL] = "_normalTS",
-    [TAG_INPUT_OPACITY] = "transparent",
-    [TAG_INPUT_ROUGHNESS] = "roughness",
-    [TAG_INPUT_METALNESS] = "metalness",
+    [TAG_INPUT_DIFFUSE] = function(self) string.format("diffuse = vec4(%s, 1.0)", self.code) end,
+    [TAG_INPUT_EMISSION] = function(self) string.format("emission = vec4(%s, 0.0)", self.code) end,
+    [TAG_INPUT_NORMAL] = function(self) string.format("_normalTS = %s", self.code) end,
+    [TAG_INPUT_OPACITY] = function(self) string.format("transparent = vec4(%s)", self.code) end,
+    [TAG_INPUT_ROUGHNESS] = function(self) string.format("roughness = %s", self.code) end,
+    [TAG_INPUT_METALNESS] = function(self) string.format("metalness = %s", self.code) end,
 }
 
 local SCN_RENDER_QUEUE_MAP =
@@ -136,7 +137,7 @@ SceneKitExport.model =
 		if type(self) == 'string' then
             return self
         elseif SURFACE_OUTPUTS[self.input_name] then
-            return string.format("_surface.%s = %s;", SURFACE_OUTPUTS[self.input_name], self.code)
+			return "_surface." .. SURFACE_OUTPUTS[self.input_name](self) .. ";"
         end
     end,
 
