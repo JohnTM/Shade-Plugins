@@ -73,7 +73,10 @@ function SceneKitExport:init()
 end
 
 function SceneKitExport:onSaveImage(name)
-	return "/" .. name
+	-- Ignore icon images
+	if name:find("Icon@2x") then return nil end
+
+	return "Images/" .. name
 end
 
 function SceneKitExport:clear()
