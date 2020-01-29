@@ -135,7 +135,7 @@ SceneKitExport.model =
 			default = string.format('float3(%.2f, %.2f, %.2f)', default[1], default[2], default[3])
 		elseif self.type == VEC4 then
 			default = string.format('float4(%.2f, %.2f, %.2f, %.2f)', default[1], default[2], default[3], default[4])
-		elseif self.type == TEXTURE2D then
+		else
 			return string.format("texture2d<float> %s;", self.name)
 		end
 
