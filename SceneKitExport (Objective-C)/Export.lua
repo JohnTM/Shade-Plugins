@@ -67,13 +67,13 @@ local SHADER_TEMPLATE_M =
 local SceneKitExport = class(MSLEvaluator)
 
 function SceneKitExport:init()
-    GLSLEvaluator.init(self)
+    MSLEvaluator.init(self)
 	self:addTemplate("{{name_no_spaces}}Material.h", SHADER_TEMPLATE_H)
     self:addTemplate("{{name_no_spaces}}Material.m", SHADER_TEMPLATE_M)
 end
 
 function SceneKitExport:clear()
-    GLSLEvaluator.clear(self)
+    MSLEvaluator.clear(self)
 
     self.viewModel =
     {
