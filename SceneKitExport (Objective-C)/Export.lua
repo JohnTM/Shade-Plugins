@@ -1,4 +1,4 @@
-require 'Editor/Evaluator/GLSLEvaluator'
+require 'Editor/Evaluator/MSLEvaluator'
 
 -- Templates use lustache for rendering: https://github.com/Olivine-Labs/lustache
 
@@ -15,7 +15,7 @@ local SHADER_TEMPLATE_H =
 
 NS_ASSUME_NONNULL_BEGIN
 
-@interface {{name_no_spaces}} : SCNMaterial
+@interface {{name_no_spaces}}Material : SCNMaterial
 
 @end
 
@@ -23,16 +23,16 @@ NS_ASSUME_NONNULL_END]]
 
 local SHADER_TEMPLATE_M =
 [[//
-//  {{name_no_spaces}}.m
+//  {{name_no_spaces}}Material.m
 //  Shade Custom Material Export for SceneKit
 //
 //  Created by John Millard on 28/1/20.
 //  Copyright © 2020 John Millard. All rights reserved.
 //
 
-#import "{{name_no_spaces}}.h"
+#import "{{name_no_spaces}}Material.h"
 
-@implementation {{name_no_spaces}}
+@implementation {{name_no_spaces}}Material
 
 - (instancetype)init
 {
@@ -43,13 +43,20 @@ local SHADER_TEMPLATE_M =
         self.shaderModifiers =
         @{SCNShaderModifierEntryPointSurface :
 		@""
+		"#pragma arguments"
 		{{#uniforms}}
 		"{{{scn_uniform}}}"
 		{{/uniforms}}
-		""
-		{{#frag}}
-        "{{{scn_surface_output}}}"
-		{{/frag}}
+
+		"#pragma body"
+
+		constexpr sampler defaultSampler(filter::linear, mip_filter::linear);
+
+		{
+			{{#frag}}
+	        "{{{scn_surface_output}}}"
+			{{/frag}}
+		}
         };
     }
     return self;
@@ -57,7 +64,7 @@ local SHADER_TEMPLATE_M =
 
 @end]]
 
-local SceneKitExport = class(GLSLEvaluator)
+local SceneKitExport = class(MSLEvaluator)
 
 function SceneKitExport:init()
     GLSLEvaluator.init(self)
@@ -86,10 +93,10 @@ end
 
 local SURFACE_OUTPUTS =
 {
-    [TAG_INPUT_DIFFUSE] = function(self) return string.format("diffuse = vec4(%s, 1.0)", self.code) end,
-    [TAG_INPUT_EMISSION] = function(self) return string.format("emission = vec4(%s, 0.0)", self.code) end,
+    [TAG_INPUT_DIFFUSE] = function(self) return string.format("diffuse = float4(%s, 1.0)", self.code) end,
+    [TAG_INPUT_EMISSION] = function(self) return string.format("emission = float4(%s, 0.0)", self.code) end,
     [TAG_INPUT_NORMAL] = function(self) return string.format("_normalTS = %s", self.code) end,
-    [TAG_INPUT_OPACITY] = function(self) return string.format("transparent = vec4(%s)", self.code) end,
+    [TAG_INPUT_OPACITY] = function(self) return string.format("transparent = float4(%s)", self.code) end,
     [TAG_INPUT_ROUGHNESS] = function(self) return string.format("roughness = %s", self.code) end,
     [TAG_INPUT_METALNESS] = function(self) return string.format("metalness = %s", self.code) end,
 }
@@ -119,17 +126,20 @@ SceneKitExport.model =
 {
     scn_uniform = function(self)
 		local default = nil
+
 		if self.type == FLOAT then
 			default = string.format('%.2f', default)
 		elseif self.type == VEC2 then
-			default = string.format('vec2(%.2f, %.2f)', default[1], default[2])
+			default = string.format('float2(%.2f, %.2f)', default[1], default[2])
 		elseif self.type == VEC3 then
-			default = string.format('vec3(%.2f, %.2f, %.2f)', default[1], default[2], default[3])
+			default = string.format('float3(%.2f, %.2f, %.2f)', default[1], default[2], default[3])
 		elseif self.type == VEC4 then
-			default = string.format('vec4(%.2f, %.2f, %.2f, %.2f)', default[1], default[2], default[3], default[4])
+			default = string.format('float4(%.2f, %.2f, %.2f, %.2f)', default[1], default[2], default[3], default[4])
+		elseif self.type == TEXTURE2D then
+			return string.format("texture2d<float> %s;", self.name)
 		end
 
-        return string.format("uniform %s %s = ;", self.value_type, self.name)
+        return string.format("%s %s = ;", self.value_type, self.name)
     end,
 
     -- Convert fragment/surface outputs into shader code
@@ -146,31 +156,37 @@ SceneKitExport.model =
 -- Lookup tables for various shader syntax
 local SCN_TEXCOORD =
 {
-    [TAG_VERT] = "_geometry.texcoords",
-    [TAG_FRAG] = "_geometry.texcoords"
+    [TAG_VERT] = {"_geometry.texcoords[0]", "_geometry.texcoords[1]"},
+    [TAG_FRAG] = {"_surface.diffuseTexcoord", "_surface.diffuseTexcoord"}
 }
 
 local SCN_COLOR =
 {
     [TAG_VERT] = "_geometry.color",
-    [TAG_FRAG] = "_geometry.color"
+    [TAG_FRAG] = "in.vertexColor"
 }
 
 local SCN_POSITION =
 {
     [TAG_VERT] =
     {
-        [OBJECT_SPACE] = "???",
-        [VIEW_SPACE] = "???",
-        [WORLD_SPACE] = "???",
-        [TANGENT_SPACE] = "???",
+        [OBJECT_SPACE] = "_geometry.position.xyz",
+        [VIEW_SPACE] = "(scn_node.modelViewTransform * _geometry.position).xyz",
+        [WORLD_SPACE] = "(scn_node.modelTransform * _geometry.position).xyz",
+        [TANGENT_SPACE] = "???"
+-- [[
+-- {
+-- 	vec3 bitangent = _geometry.tangent.w * cross(_geometry.tangent, _geometry.normal);
+-- 	vec3 ts2vs = mat3(_geometry.tangent, bitangent, _geometry.normal);
+-- }
+-- ]]
     },
 
     [TAG_FRAG] =
     {
-        [OBJECT_SPACE] = "scn_node.inverseModelTransform * vec4(_surface.position, 1.0)",
-        [VIEW_SPACE] = "???",
-        [WORLD_SPACE] = "???",
+        [OBJECT_SPACE] = "(scn_node.inverseModelTransform * vec4(_surface.position, 1.0)).xyz",
+        [VIEW_SPACE] = "(scn_frame.viewTransform * scn_node.inverseModelTransform * vec4(_surface.position, 1.0)).xyz",
+        [WORLD_SPACE] = "_surface.position",
         [TANGENT_SPACE] = "???",
     }
 }
@@ -179,17 +195,17 @@ local SCN_NORMAL =
 {
     [TAG_VERT] =
     {
-        [OBJECT_SPACE] = "???",
-        [VIEW_SPACE] = "???",
-        [WORLD_SPACE] = "???",
+        [OBJECT_SPACE] = "_geometry.normal",
+        [VIEW_SPACE] = "(scn_node.modelViewTransform * vec4(_geometry.normal, 0.0)).xyz",
+        [WORLD_SPACE] = "(scn_node.modelTransform * vec4(_geometry.normal, 0.0)).xyz",
         [TANGENT_SPACE] = "???",
     },
 
     [TAG_FRAG] =
     {
-        -- [OBJECT_SPACE] *special-case*
-        [VIEW_SPACE] = "???",
-        -- [WORLD_SPACE] *special-case*
+		[OBJECT_SPACE] = "(scn_node.normalTransform * vec4(_surface.normal, 0.0)).xyz",
+        [VIEW_SPACE] = "(scn_frame.viewTransform * scn_node.normalTransform * vec4(_surface.normal, 0.0)).xyz",
+        [WORLD_SPACE] = "(vec4(_surface.geometryNormal, 0.0) * scn_node.normalTransform).xyz",
         [TANGENT_SPACE] = "???",
     }
 }
@@ -207,7 +223,7 @@ local SCN_VIEW_DIR =
     [TAG_FRAG] =
     {
         [OBJECT_SPACE] = "???",
-        [VIEW_SPACE] = "???",
+        [VIEW_SPACE] = "_surface.view",
         [WORLD_SPACE] = "???",
         [TANGENT_SPACE] = "???",
     }
@@ -218,7 +234,7 @@ local SCN_VIEW_DIR =
 SceneKitExport.syntax =
 {
     uv = function(self, index)
-		return SCN_TEXCOORD[self:tag()]..string.format("[%d]", (index and index or 1) - 1)
+		return SCN_TEXCOORD[self:tag()][index or 1]
 	end,
 
     color = function(self, index) return SCN_COLOR[self:tag()] end,
@@ -226,38 +242,22 @@ SceneKitExport.syntax =
     position = function(self, space)
         return SCN_POSITION[self:tag()][space]
     end,
-    --
-    -- normal = function(self, space)
-    --
-    --     -- Exception for object/world space normals in surface shader (due to special behaviour when writing custom normals)
-    --     if space == OBJECT_SPACE and self:tag() == TAG_FRAG then
-    --         return string.format("normalize( mul( float4(%s , 0.0 ), unity_WorldToObject ).xyz )", self:normal(WORLD_SPACE))
-    --     elseif space == WORLD_SPACE and self:tag() == TAG_FRAG then
-    --         if self.viewModel[TAG_WRITE_NORMAL] then
-    --             return "WorldNormalVector(IN, float3(0, 0, 1))"
-    --         else
-    --             return "normalize(IN.worldNormal)"
-    --         end
-    --     end
-    --
-    --     return UNITY_NORMAL[self:tag()][space]
-    -- end,
-    --
-    -- viewDir = function(self, space)
-    --     if space == WORLD_SPACE and self:tag() == TAG_FRAG then
-    --         self.viewModel[TAG_READ_WORLD_POS] = true
-    --     end
-    --
-    --     return UNITY_VIEW_DIR[self:tag()][space]
-    -- end,
-    --
-    -- texture2D = function(self, sampler, uv)
-    --     return string.format("tex2D(%s, %s)", sampler, uv)
-    -- end,
-    --
-    -- texture2DLod = function(self, sampler, uv, lod)
-    --     return string.format("tex2DLod(%s, %s)", sampler, uv)
-    -- end,
+
+	normal = function(self, space)
+		return SCN_NORMAL[self:tag()][space]
+	end,
+
+	viewDir = function(self, space)
+		return SCN_VIEW_DIR[self:tag()][space]
+	end,
+
+    texture2D = function(self, sampler, uv)
+        return string.format("%s.sample(defaultSampler, %s)", sampler, uv)
+    end,
+
+    texture2DLod = function(self, sampler, uv, lod)
+        return string.format("%s.sample(defaultSampler, %s, level(%s))", sampler, uv, lod)
+    end,
     --
     -- textureSize = function(self, tex)
     --     return "vec2(0.0, 0.0)"
