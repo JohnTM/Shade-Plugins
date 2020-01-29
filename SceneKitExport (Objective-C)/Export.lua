@@ -139,7 +139,7 @@ SceneKitExport.model =
 			return string.format("texture2d<float> %s;", self.name)
 		end
 
-        return string.format("%s %s = ;", self.value_type, self.name)
+        return string.format("%s %s = %s;", self.value_type, self.name, default)
     end,
 
     -- Convert fragment/surface outputs into shader code
