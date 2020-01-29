@@ -72,6 +72,10 @@ function SceneKitExport:init()
     self:addTemplate("{{name_no_spaces}}Material.m", SHADER_TEMPLATE_M)
 end
 
+function SceneKitExport:onSaveImage(name)
+	return "/" .. name
+end
+
 function SceneKitExport:clear()
     MSLEvaluator.clear(self)
 
