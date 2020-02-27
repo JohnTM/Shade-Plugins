@@ -1,4 +1,4 @@
-require 'Editor/Evaluator/MSLEvaluator'
+require 'Editor/Evaluator/GLSLEvaluator'
 
 -- Templates use lustache for rendering: https://github.com/Olivine-Labs/lustache
 
@@ -47,16 +47,13 @@ local SHADER_TEMPLATE_M =
 		{{#uniforms}}
 		"{{{scn_uniform}}}"
 		{{/uniforms}}
-
 		"#pragma body"
-
-		constexpr sampler defaultSampler(filter::linear, mip_filter::linear);
-
-		{
-			{{#frag}}
-	        "{{{scn_surface_output}}}"
-			{{/frag}}
-		}
+		"constexpr sampler defaultSampler(filter::linear, mip_filter::linear);"
+		"{"
+		"	{{#frag}}"
+	    "   {{{scn_surface_output}}}"
+		"	{{/frag}}"
+		"}"
         };
     }
     return self;
@@ -131,22 +128,9 @@ local SCN_BLEND_MAP =
 -- Tags, such as uniforms and properties, contain data that must be processed into strings
 SceneKitExport.model =
 {
+	-- {name, type, value_type, index, precision}
     scn_uniform = function(self)
-		local default = nil
-
-		if self.type == FLOAT then
-			default = string.format('%.2f', default)
-		elseif self.type == VEC2 then
-			default = string.format('float2(%.2f, %.2f)', default[1], default[2])
-		elseif self.type == VEC3 then
-			default = string.format('float3(%.2f, %.2f, %.2f)', default[1], default[2], default[3])
-		elseif self.type == VEC4 then
-			default = string.format('float4(%.2f, %.2f, %.2f, %.2f)', default[1], default[2], default[3], default[4])
-		else
-			return string.format("texture2d<float> %s;", self.name)
-		end
-
-        return string.format("%s %s = %s;", self.value_type, self.name, default)
+		return string.format("%s %s;", self.value_type, self.name)
     end,
 
     -- Convert fragment/surface outputs into shader code
