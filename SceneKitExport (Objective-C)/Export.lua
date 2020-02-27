@@ -1,4 +1,4 @@
-require 'Editor/Evaluator/GLSLEvaluator'
+require 'Editor/Evaluator/MSLEvaluator'
 
 -- Templates use lustache for rendering: https://github.com/Olivine-Labs/lustache
 
@@ -17,6 +17,10 @@ NS_ASSUME_NONNULL_BEGIN
 
 @interface {{name_no_spaces}}Material : SCNMaterial
 
+{{#properties}}
+{{{scn_property_header}}};
+{{/properties}}
+
 @end
 
 NS_ASSUME_NONNULL_END]]
@@ -34,6 +38,10 @@ local SHADER_TEMPLATE_M =
 
 @implementation {{name_no_spaces}}Material
 
+{{#properties}}
+{{{scn_property_source}}}
+{{/properties}}
+
 - (instancetype)init
 {
     self = [super init];
@@ -42,19 +50,26 @@ local SHADER_TEMPLATE_M =
 
         self.shaderModifiers =
         @{SCNShaderModifierEntryPointSurface :
-		@""
-		"#pragma arguments"
+		@"#pragma arguments\n"
 		{{#uniforms}}
-		"{{{scn_uniform}}}"
+		"{{{scn_uniform}}}\n"
 		{{/uniforms}}
-		"#pragma body"
-		"constexpr sampler defaultSampler(filter::linear, mip_filter::linear);"
-		"{"
-		"	{{#frag}}"
-	    "   {{{scn_surface_output}}}"
-		"	{{/frag}}"
-		"}"
+		{{#frag_funcs}}
+		"{{{.}}}"
+        {{/frag_funcs}}
+		"#pragma body\n"
+
+		"constexpr sampler defaultSampler(filter::linear, mip_filter::linear);\n"
+		"{\n"
+			{{#frag}}
+	        "{{{scn_surface_output}}}\n"
+			{{/frag}}
+		"}\n"
         };
+        
+        {{#properties}}
+        {{scn_property_init}}
+        {{/properties}}
     }
     return self;
 }
@@ -73,7 +88,7 @@ function SceneKitExport:onSaveImage(name)
 	-- Ignore icon images
 	if name:find("Icon@2x") then return nil end
 
-	return "/Images/" .. name
+	return "Images/" .. name
 end
 
 function SceneKitExport:clear()
@@ -128,9 +143,22 @@ local SCN_BLEND_MAP =
 -- Tags, such as uniforms and properties, contain data that must be processed into strings
 SceneKitExport.model =
 {
-	-- {name, type, value_type, index, precision}
     scn_uniform = function(self)
-		return string.format("%s %s;", self.value_type, self.name)
+		local default = {0.0, 0.0, 0.0, 0.0}
+
+		if self.type == FLOAT then
+			default = string.format('%.2f', default[1])
+		elseif self.type == VEC2 then
+			default = string.format('float2(%.2f, %.2f)', default[1], default[2])
+		elseif self.type == VEC3 then
+			default = string.format('float3(%.2f, %.2f, %.2f)', default[1], default[2], default[3])
+		elseif self.type == VEC4 then
+			default = string.format('float4(%.2f, %.2f, %.2f, %.2f)', default[1], default[2], default[3], default[4])
+		else
+			return string.format("texture2d<float> %s;", self.name)
+		end
+
+        return string.format("%s %s = %s;", self.value_type, self.name, default)
     end,
 
     -- Convert fragment/surface outputs into shader code
@@ -141,7 +169,79 @@ SceneKitExport.model =
 			return "_surface." .. SURFACE_OUTPUTS[self.input_name](self) .. ";"
         end
     end,
-
+    
+    scn_property_header = function(self)
+        local valueType = nil
+        if self.type == TEXTURE2D then 
+            valueType = "id<SCNMaterialProperty>"
+        elseif self.type == FLOAT then 
+            valueType = "CGFloat"
+        elseif self.type == VEC2 then 
+            valueType = "CGPoint"
+        elseif self.type == VEC3 then
+            valueType = "SCNVector3"
+        elseif self.type == VEC4 then
+            valueType = "SCNVector4" 
+        end
+        
+        local name = self.uniform_name:gsub("_", "")
+        
+        return string.format("@property(nonatomic, assign) %s %s", valueType, name)
+    end,
+    
+    scn_property_source = function(self)
+        local viewModel = {}
+    
+        if self.type == TEXTURE2D then 
+            viewModel.value_type = "SCNMaterialProperty*"
+            viewModel.wrapper = "value"
+        elseif self.type == FLOAT then 
+            viewModel.value_type = "CGFloat"
+            viewModel.wrapper = "[NSNumber numberWithFloat:value]"
+        elseif self.type == VEC2 then 
+            viewModel.value_type = "CGPoint"
+            viewModel.wrapper = "[NSValue valueWithPoint:NSMakePoint(value.x, value.y)]"            
+        elseif self.type == VEC3 then
+            viewModel.value_type = "SCNVector3"
+            viewModel.wrapper = "[NSValue valueWithSCNVector3:value]"                        
+        elseif self.type == VEC4 then
+            viewModel.value_type = "SCNVector4" 
+            viewModel.wrapper = "[NSValue valueWithSCNVector4:value]"                                    
+        end
+        
+        viewModel.setter_name = self.uniform_name:gsub("_", ""):titlecase()            
+        viewModel.uniform_name = self.uniform_name
+        
+        local template = 
+[[
+- (void) set{{{setter_name}}}:({{{value_type}}})value
+{
+    [self setValue:{{{wrapper}}} forKey:@"{{{uniform_name}}}"];
+}
+]]
+        return lustache:render(template, viewModel)
+    end,
+    
+    scn_property_init = function(self)
+        local viewModel = {}
+    
+        if self.type == TEXTURE2D then 
+            viewModel.value = string.format("[SCNMaterialProperty materialPropertyWithContents:'%s.png']", self.default) 
+        elseif self.type == FLOAT then 
+            viewModel.value = string.format("%f", self.default)
+        elseif self.type == VEC2 then 
+            viewModel.value = string.format("CGPointMake(%f, %f)", self.default[1], self.default[2])
+        elseif self.type == VEC3 then
+            viewModel.value = string.format("SCNVector3Make(%f, %f, %f)", self.default[1], self.default[2], self.default[3])        
+        elseif self.type == VEC4 then
+            viewModel.value = string.format("SCNVector4Make(%f, %f, %f, %f)", self.default[1], self.default[2], self.default[3], self.default[4])                
+        end
+        
+        viewModel.property_name = self.uniform_name:gsub("_", "")
+        
+        local template = [[self.{{{property_name}}} = {{{value}}};]]
+        return lustache:render(template, viewModel)
+    end
 }
 
 -- Lookup tables for various shader syntax
