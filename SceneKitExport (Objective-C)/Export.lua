@@ -131,7 +131,7 @@ function SceneKitExport:clear()
 end
 
 function SceneKitExport:functionCall(name, ...)
-    return "functions."..MSLEvaluator.functionCall(name, ...)
+    return "functions."..MSLEvaluator.functionCall(self, name, ...)
 end
 
 
