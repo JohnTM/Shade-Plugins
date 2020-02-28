@@ -54,19 +54,39 @@ local SHADER_TEMPLATE_M =
 		{{#uniforms}}
 		"{{{scn_uniform}}}\n"
 		{{/uniforms}}
-		{{#frag_funcs}}
-		"{{{.}}}\n"
-        {{/frag_funcs}}
+		"#pragma declaration\n"
+		"constexpr sampler defaultSampler(filter::linear, mip_filter::linear);\n"
 		"#pragma body\n"
 
-		"constexpr sampler defaultSampler(filter::linear, mip_filter::linear);\n"
+		"struct Functions\n"
+		"{\n"
+        "   constant commonprofile_node& scn_node;\n"
+        "   constant SCNSceneBuffer& scn_frame;\n"
+        "   thread SCNShaderSurface& _surface;\n"
+			{{#uniforms}}
+		"	{{{scn_uniform_function_struct_member}}}\n"
+			{{/uniforms}}
+			{{#frag_funcs}}
+		"	{{{.}}}\n"
+	        {{/frag_funcs}}
+		"}\n"
+		"Functions functions
+		"{\"
+		"	scn_node,\n"
+		"	scn_frame,\n"
+		"	_surface,\n"
+			{{#uniforms}}
+		"	{{{scn_uniform_function_struct_init}}},\n"
+			{{/uniforms}}
+		"};\n"
+
 		"{\n"
 			{{#frag}}
-	        "{{{scn_surface_output}}}\n"
+	    "	{{{scn_surface_output}}}\n"
 			{{/frag}}
 		"}\n"
         };
-        
+
         {{#properties}}
         {{{scn_property_init}}}
         {{/properties}}
@@ -161,6 +181,15 @@ SceneKitExport.model =
         return string.format("%s %s = %s;", self.value_type, self.name, default)
     end,
 
+	scn_uniform_function_struct_member = function(self)
+		return string.format("%s %s;", self.value_type, self.name)
+	end,
+
+	scn_uniform_function_struct_init = function(self)
+		return string.format("%s", self.name)
+	end,
+
+
     -- Convert fragment/surface outputs into shader code
     scn_surface_output = function(self)
 		if type(self) == 'string' then
@@ -169,50 +198,50 @@ SceneKitExport.model =
 			return "_surface." .. SURFACE_OUTPUTS[self.input_name](self) .. ";"
         end
     end,
-    
+
     scn_property_header = function(self)
         local valueType = nil
-        if self.type == TEXTURE2D then 
+        if self.type == TEXTURE2D then
             valueType = "SCNMaterialProperty*"
-        elseif self.type == FLOAT then 
+        elseif self.type == FLOAT then
             valueType = "CGFloat"
-        elseif self.type == VEC2 then 
+        elseif self.type == VEC2 then
             valueType = "CGPoint"
         elseif self.type == VEC3 then
             valueType = "SCNVector3"
         elseif self.type == VEC4 then
-            valueType = "SCNVector4" 
+            valueType = "SCNVector4"
         end
-        
+
         local name = self.uniform_name:gsub("_", "")
-        
+
         return string.format("@property(nonatomic, assign) %s %s", valueType, name)
     end,
-    
+
     scn_property_source = function(self)
         local viewModel = {}
-    
-        if self.type == TEXTURE2D then 
+
+        if self.type == TEXTURE2D then
             viewModel.value_type = "SCNMaterialProperty*"
             viewModel.wrapper = "value"
-        elseif self.type == FLOAT then 
+        elseif self.type == FLOAT then
             viewModel.value_type = "CGFloat"
             viewModel.wrapper = "[NSNumber numberWithFloat:value]"
-        elseif self.type == VEC2 then 
+        elseif self.type == VEC2 then
             viewModel.value_type = "CGPoint"
-            viewModel.wrapper = "[NSValue valueWithPoint:NSMakePoint(value.x, value.y)]"            
+            viewModel.wrapper = "[NSValue valueWithPoint:NSMakePoint(value.x, value.y)]"
         elseif self.type == VEC3 then
             viewModel.value_type = "SCNVector3"
-            viewModel.wrapper = "[NSValue valueWithSCNVector3:value]"                        
+            viewModel.wrapper = "[NSValue valueWithSCNVector3:value]"
         elseif self.type == VEC4 then
-            viewModel.value_type = "SCNVector4" 
-            viewModel.wrapper = "[NSValue valueWithSCNVector4:value]"                                    
+            viewModel.value_type = "SCNVector4"
+            viewModel.wrapper = "[NSValue valueWithSCNVector4:value]"
         end
-        
-        viewModel.setter_name = self.uniform_name:gsub("_", ""):titlecase()            
+
+        viewModel.setter_name = self.uniform_name:gsub("_", ""):titlecase()
         viewModel.uniform_name = self.uniform_name
-        
-        local template = 
+
+        local template =
 [[
 - (void) set{{{setter_name}}}:({{{value_type}}})value
 {
@@ -221,24 +250,24 @@ SceneKitExport.model =
 ]]
         return lustache:render(template, viewModel)
     end,
-    
+
     scn_property_init = function(self)
         local viewModel = {}
-    
-        if self.type == TEXTURE2D then 
-            viewModel.value = string.format('[SCNMaterialProperty materialPropertyWithContents:@"%s.png"]', self.default) 
-        elseif self.type == FLOAT then 
+
+        if self.type == TEXTURE2D then
+            viewModel.value = string.format('[SCNMaterialProperty materialPropertyWithContents:@"%s.png"]', self.default)
+        elseif self.type == FLOAT then
             viewModel.value = string.format("%f", self.default)
-        elseif self.type == VEC2 then 
+        elseif self.type == VEC2 then
             viewModel.value = string.format("CGPointMake(%f, %f)", self.default[1], self.default[2])
         elseif self.type == VEC3 then
-            viewModel.value = string.format("SCNVector3Make(%f, %f, %f)", self.default[1], self.default[2], self.default[3])        
+            viewModel.value = string.format("SCNVector3Make(%f, %f, %f)", self.default[1], self.default[2], self.default[3])
         elseif self.type == VEC4 then
-            viewModel.value = string.format("SCNVector4Make(%f, %f, %f, %f)", self.default[1], self.default[2], self.default[3], self.default[4])                
+            viewModel.value = string.format("SCNVector4Make(%f, %f, %f, %f)", self.default[1], self.default[2], self.default[3], self.default[4])
         end
-        
+
         viewModel.property_name = self.uniform_name:gsub("_", "")
-        
+
         local template = [[self.{{{property_name}}} = {{{value}}};]]
         return lustache:render(template, viewModel)
     end
