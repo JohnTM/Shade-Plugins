@@ -113,7 +113,14 @@ function SceneKitExport:onSaveImage(name)
 	-- Ignore icon images
 	if name:find("Icon@2x") then return nil end
 
-	return "Images/" .. name
+	-- Check if image is actually used
+	for _, prop in pairs(self.viewModel[TAG_PROPERTIES]) do
+		if name:removeExtension() == prop.default then
+			return "Images/" .. name
+		end
+	end
+
+	return nil
 end
 
 function SceneKitExport:clear()
@@ -308,6 +315,8 @@ SceneKitExport.model =
         local template =
 [[{{#texture}}
 self->{{{uniform_name}}} = {{{value}}};
+self->{{{uniform_name}}}.wrapS = SCNWrapModeRepeat;
+self->{{{uniform_name}}}.wrapT = SCNWrapModeRepeat;
 [self setValue:self->{{{uniform_name}}} forKey:@"{{{uniform_name}}}"];
 {{/texture}}
 {{^texture}}
