@@ -40,7 +40,7 @@ local SHADER_TEMPLATE_M =
 {
 {{#properties}}
 {{{scn_property_declare}}}
-{{#properties}}
+{{/properties}}
 }
 
 {{#properties}}
