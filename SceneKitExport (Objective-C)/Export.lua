@@ -55,7 +55,7 @@ local SHADER_TEMPLATE_M =
 		"{{{scn_uniform}}}\n"
 		{{/uniforms}}
 		{{#frag_funcs}}
-		"{{{.}}}"
+		"{{{.}}}\n"
         {{/frag_funcs}}
 		"#pragma body\n"
 
@@ -68,7 +68,7 @@ local SHADER_TEMPLATE_M =
         };
         
         {{#properties}}
-        {{scn_property_init}}
+        {{{scn_property_init}}}
         {{/properties}}
     }
     return self;
@@ -173,7 +173,7 @@ SceneKitExport.model =
     scn_property_header = function(self)
         local valueType = nil
         if self.type == TEXTURE2D then 
-            valueType = "id<SCNMaterialProperty>"
+            valueType = "SCNMaterialProperty*"
         elseif self.type == FLOAT then 
             valueType = "CGFloat"
         elseif self.type == VEC2 then 
@@ -226,7 +226,7 @@ SceneKitExport.model =
         local viewModel = {}
     
         if self.type == TEXTURE2D then 
-            viewModel.value = string.format("[SCNMaterialProperty materialPropertyWithContents:'%s.png']", self.default) 
+            viewModel.value = string.format('[SCNMaterialProperty materialPropertyWithContents:@"%s.png"]', self.default) 
         elseif self.type == FLOAT then 
             viewModel.value = string.format("%f", self.default)
         elseif self.type == VEC2 then 
@@ -347,7 +347,7 @@ SceneKitExport.syntax =
     end,
 
     texture2DLod = function(self, sampler, uv, lod)
-        return string.format("%s.sample(defaultSampler, %s, level(%s))", sampler, uv, lod)
+        return string.format("%s.sample(defaultSampler, %s, level(%s))", sampler, uv, lod or "0.0")
     end,
     --
     -- textureSize = function(self, tex)
