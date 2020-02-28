@@ -37,6 +37,11 @@ local SHADER_TEMPLATE_M =
 #import "{{name_no_spaces}}Material.h"
 
 @implementation {{name_no_spaces}}Material
+{
+{{#properties}}
+{{{scn_property_declare}}}
+{{#properties}}
+}
 
 {{#properties}}
 {{{scn_property_source}}}
@@ -137,12 +142,15 @@ end
 
 local SURFACE_OUTPUTS =
 {
-    [TAG_INPUT_DIFFUSE] = function(self) return string.format("diffuse = float4(%s, 1.0)", self.code) end,
-    [TAG_INPUT_EMISSION] = function(self) return string.format("emission = float4(%s, 0.0)", self.code) end,
-    [TAG_INPUT_NORMAL] = function(self) return string.format("_normalTS = %s", self.code) end,
-    [TAG_INPUT_OPACITY] = function(self) return string.format("transparent = float4(%s)", self.code) end,
-    [TAG_INPUT_ROUGHNESS] = function(self) return string.format("roughness = %s", self.code) end,
-    [TAG_INPUT_METALNESS] = function(self) return string.format("metalness = %s", self.code) end,
+    [TAG_INPUT_DIFFUSE] = function(self) return string.format("_surface.diffuse = float4(%s, 1.0);", self.code) end,
+    [TAG_INPUT_EMISSION] = function(self) return string.format("_surface.emission = float4(%s, 0.0);", self.code) end,
+    [TAG_INPUT_NORMAL] = function(self)
+		return string.format("float3 tsn = %s;\n", self.code).."_surface.normal = tsn.x * _surface.tangent + tsn.y * _surface.bitangent + tsn.z * _surface.normal;"
+	end,
+    [TAG_INPUT_OPACITY] = function(self) return string.format("_surface.transparent = float4(%s);", self.code) end,
+    [TAG_INPUT_ROUGHNESS] = function(self) return string.format("_surface.roughness = %s;", self.code) end,
+    [TAG_INPUT_METALNESS] = function(self) return string.format("_surface.metalness = %s;", self.code) end,
+    [TAG_INPUT_OCCLUSION] = function(self) return string.format("_surface.ambientOcclusion = %s;", self.code) end,
 }
 
 local SCN_RENDER_QUEUE_MAP =
@@ -200,7 +208,7 @@ SceneKitExport.model =
 		if type(self) == 'string' then
             return self
         elseif SURFACE_OUTPUTS[self.input_name] then
-			return "_surface." .. SURFACE_OUTPUTS[self.input_name](self) .. ";"
+			return SURFACE_OUTPUTS[self.input_name](self)
         end
     end,
 
@@ -223,12 +231,33 @@ SceneKitExport.model =
         return string.format("@property(nonatomic, assign) %s %s", valueType, name)
     end,
 
+	scn_property_declare = function(self)
+        local viewModel = {}
+		viewModel.uniform_name = self.uniform_name
+
+        if self.type == TEXTURE2D then
+            viewModel.value_type = "SCNMaterialProperty*"
+        elseif self.type == FLOAT then
+            viewModel.value_type = "CGFloat"
+        elseif self.type == VEC2 then
+            viewModel.value_type = "CGPoint"
+        elseif self.type == VEC3 then
+            viewModel.value_type = "SCNVector3"
+        elseif self.type == VEC4 then
+            viewModel.value_type = "SCNVector4"
+        end
+
+        local template = "{{{value_type}}} {{{uniform_name}}};"
+        return lustache:render(template, viewModel)
+    end,
+
     scn_property_source = function(self)
         local viewModel = {}
 
         if self.type == TEXTURE2D then
-            viewModel.value_type = "SCNMaterialProperty*"
+            viewModel.value_type = "id"
             viewModel.wrapper = "value"
+			viewModel.texture = true
         elseif self.type == FLOAT then
             viewModel.value_type = "CGFloat"
             viewModel.wrapper = "[NSNumber numberWithFloat:value]"
@@ -250,6 +279,7 @@ SceneKitExport.model =
 [[
 - (void) set{{{setter_name}}}:({{{value_type}}})value
 {
+	self.{{{uniform_name}}}{{#texture}}.contents{{/texture}} = value;
     [self setValue:{{{wrapper}}} forKey:@"{{{uniform_name}}}"];
 }
 ]]
@@ -261,6 +291,7 @@ SceneKitExport.model =
 
         if self.type == TEXTURE2D then
             viewModel.value = string.format('[SCNMaterialProperty materialPropertyWithContents:@"%s.png"]', self.default)
+			viewModel.texture = true
         elseif self.type == FLOAT then
             viewModel.value = string.format("%f", self.default)
         elseif self.type == VEC2 then
@@ -272,8 +303,17 @@ SceneKitExport.model =
         end
 
         viewModel.property_name = self.uniform_name:gsub("_", "")
+		viewModel.uniform_name = self.uniform_name
 
-        local template = [[self.{{{property_name}}} = {{{value}}};]]
+        local template =
+[[{{#texture}}
+self->{{{uniform_name}}} = {{{value}}};
+[self setValue:self->{{{uniform_name}}} forKey:@"{{{uniform_name}}}"];
+{{/texture}}
+{{^texture}}
+self.{{{property_name}}} = {{{value}}};
+{{/texture}}
+]]
         return lustache:render(template, viewModel)
     end
 }
