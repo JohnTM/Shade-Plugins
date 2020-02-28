@@ -69,9 +69,9 @@ local SHADER_TEMPLATE_M =
 			{{#frag_funcs}}
 		"	{{{.}}}\n"
 	        {{/frag_funcs}}
-		"}\n"
-		"Functions functions
-		"{\"
+		"};\n"
+		"Functions functions\n"
+		"{\n"
 		"	scn_node,\n"
 		"	scn_frame,\n"
 		"	_surface,\n"
@@ -129,6 +129,11 @@ function SceneKitExport:clear()
     end
 
 end
+
+function SceneKitExport:functionCall(name, ...)
+    return "functions."..MSLEvaluator.functionCall(name, ...)
+end
+
 
 local SURFACE_OUTPUTS =
 {
