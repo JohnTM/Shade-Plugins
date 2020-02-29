@@ -54,7 +54,23 @@ local SHADER_TEMPLATE_M =
         self.lightingModelName = SCNLightingModelPhysicallyBased;
 
         self.shaderModifiers =
-        @{SCNShaderModifierEntryPointSurface :
+
+		@{SCNShaderModifierEntryPointGeometry :
+		@"#pragma arguments\n"
+		{{#uniforms}}
+		"{{{scn_uniform}}}\n"
+		{{/uniforms}}
+		"#pragma declaration\n"
+		"constexpr sampler defaultSampler(coord::normalized, address::repeat, filter::linear, mip_filter::linear);\n"
+		"#pragma body\n"
+		"{\n"
+			{{#vert}}
+	    "	{{{scn_surface_output}}}\n"
+			{{/vert}}
+		"}\n"
+		},
+
+        SCNShaderModifierEntryPointSurface :
 		@"#pragma arguments\n"
 		{{#uniforms}}
 		"{{{scn_uniform}}}\n"
@@ -163,6 +179,7 @@ local SURFACE_OUTPUTS =
     [TAG_INPUT_ROUGHNESS] = function(self) return string.format("_surface.roughness = %s;", self.code) end,
     [TAG_INPUT_METALNESS] = function(self) return string.format("_surface.metalness = %s;", self.code) end,
     [TAG_INPUT_OCCLUSION] = function(self) return string.format("_surface.ambientOcclusion = %s;", self.code) end,
+	[TAG_INPUT_VERTEX_OFFSET] = function(self) return string.format("_surface.position += %s;", self.code) end
 }
 
 local SCN_RENDER_QUEUE_MAP =
