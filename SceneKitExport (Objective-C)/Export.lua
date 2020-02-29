@@ -60,7 +60,7 @@ local SHADER_TEMPLATE_M =
 		"{{{scn_uniform}}}\n"
 		{{/uniforms}}
 		"#pragma declaration\n"
-		"constexpr sampler defaultSampler(filter::linear, mip_filter::linear);\n"
+		"constexpr sampler defaultSampler(coord::normalized, address::repeat, filter::linear, mip_filter::linear);\n"
 		"#pragma body\n"
 
 		"struct Functions\n"
@@ -152,7 +152,12 @@ local SURFACE_OUTPUTS =
     [TAG_INPUT_DIFFUSE] = function(self) return string.format("_surface.diffuse = float4(%s, 1.0);", self.code) end,
     [TAG_INPUT_EMISSION] = function(self) return string.format("_surface.emission = float4(%s, 0.0);", self.code) end,
     [TAG_INPUT_NORMAL] = function(self)
-		return string.format("float3 tsn = %s;\n", self.code).."_surface.normal = tsn.x * _surface.tangent + tsn.y * _surface.bitangent + tsn.z * _surface.normal;\n"
+		return string.format(
+[[{\n"
+"  		_surface._normalTS = %s;\n"
+"		float3x3 ts2vs = float3x3(_surface.tangent, _surface.bitangent, _surface.normal);\n"
+"		_surface.normal.rgb = normalize(ts2vs * _surface._normalTS.xyz);\n"
+"}]], self.code)
 	end,
     [TAG_INPUT_OPACITY] = function(self) return string.format("_surface.transparent = float4(%s);", self.code) end,
     [TAG_INPUT_ROUGHNESS] = function(self) return string.format("_surface.roughness = %s;", self.code) end,
@@ -215,7 +220,6 @@ SceneKitExport.model =
 		if type(self) == 'string' then
             return self
         elseif SURFACE_OUTPUTS[self.input_name] then
-			if self.input_name == TAG_INPUT_NORMAL then return "" end
 			return SURFACE_OUTPUTS[self.input_name](self)
         end
     end,
@@ -293,7 +297,7 @@ SceneKitExport.model =
 	[self setValue:{{{wrapper}}} forKey:@"{{{uniform_name}}}"];
 }
 
-- (void) get{{{setter_name}}}
+- ({{{value_type}}}) get{{{setter_name}}}
 {
 	return self->{{{uniform_name}}};
 }
