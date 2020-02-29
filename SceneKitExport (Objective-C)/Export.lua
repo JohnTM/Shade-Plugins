@@ -215,15 +215,17 @@ SceneKitExport.model =
 		if type(self) == 'string' then
             return self
         elseif SURFACE_OUTPUTS[self.input_name] then
-			if self.input_name == TAG_INPUT_NORMAL then return "\n" end
+			if self.input_name == TAG_INPUT_NORMAL then return "" end
 			return SURFACE_OUTPUTS[self.input_name](self)
         end
     end,
 
     scn_property_header = function(self)
         local valueType = nil
+		local mode = "assign"
         if self.type == TEXTURE2D then
             valueType = "SCNMaterialProperty*"
+			mode = "strong"
         elseif self.type == FLOAT then
             valueType = "CGFloat"
         elseif self.type == VEC2 then
@@ -236,7 +238,7 @@ SceneKitExport.model =
 
         local name = self.uniform_name:gsub("_", "")
 
-        return string.format("@property(nonatomic, assign) %s %s", valueType, name)
+        return string.format("@property(nonatomic, %s) %s %s", mode, valueType, name)
     end,
 
 	scn_property_declare = function(self)
@@ -287,13 +289,13 @@ SceneKitExport.model =
 [[
 - (void) set{{{setter_name}}}:({{{value_type}}})value
 {
-	self.{{{uniform_name}}} = value;
+	self->{{{uniform_name}}} = value;
 	[self setValue:{{{wrapper}}} forKey:@"{{{uniform_name}}}"];
 }
 
 - (void) get{{{setter_name}}}
 {
-	return self.{{{uniform_name}}};
+	return self->{{{uniform_name}}};
 }
 ]]
         return lustache:render(template, viewModel)
