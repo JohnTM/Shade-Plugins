@@ -152,7 +152,7 @@ local SURFACE_OUTPUTS =
     [TAG_INPUT_DIFFUSE] = function(self) return string.format("_surface.diffuse = float4(%s, 1.0);", self.code) end,
     [TAG_INPUT_EMISSION] = function(self) return string.format("_surface.emission = float4(%s, 0.0);", self.code) end,
     [TAG_INPUT_NORMAL] = function(self)
-		return string.format("float3 tsn = %s;\n", self.code).."_surface.normal = tsn.x * _surface.tangent + tsn.y * _surface.bitangent + tsn.z * _surface.normal;"
+		return string.format("float3 tsn = %s;\n", self.code).."_surface.normal = tsn.x * _surface.tangent + tsn.y * _surface.bitangent + tsn.z * _surface.normal;\n"
 	end,
     [TAG_INPUT_OPACITY] = function(self) return string.format("_surface.transparent = float4(%s);", self.code) end,
     [TAG_INPUT_ROUGHNESS] = function(self) return string.format("_surface.roughness = %s;", self.code) end,
@@ -215,6 +215,7 @@ SceneKitExport.model =
 		if type(self) == 'string' then
             return self
         elseif SURFACE_OUTPUTS[self.input_name] then
+			if self.input_name == TAG_INPUT_NORMAL then return "\n" end
 			return SURFACE_OUTPUTS[self.input_name](self)
         end
     end,
@@ -222,7 +223,7 @@ SceneKitExport.model =
     scn_property_header = function(self)
         local valueType = nil
         if self.type == TEXTURE2D then
-            valueType = "SCNMaterialProperty*"
+            valueType = "id"
         elseif self.type == FLOAT then
             valueType = "CGFloat"
         elseif self.type == VEC2 then
@@ -288,6 +289,11 @@ SceneKitExport.model =
 {
 	self.{{{uniform_name}}}{{#texture}}.contents{{/texture}} = value;
     [self setValue:{{{wrapper}}} forKey:@"{{{uniform_name}}}"];
+}
+
+- (void) get{{{setter_name}}}
+{
+	return self.{{{uniform_name}}}{{#texture}}.contents{{/texture}};
 }
 ]]
         return lustache:render(template, viewModel)
