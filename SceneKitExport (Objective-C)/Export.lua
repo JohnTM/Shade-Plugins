@@ -18,7 +18,7 @@ NS_ASSUME_NONNULL_BEGIN
 @interface {{name_no_spaces}}Material : SCNMaterial
 
 {{#properties}}
-{{{scn_property_header}}};
+	{{{scn_property_header}}};
 {{/properties}}
 
 @end
@@ -39,7 +39,7 @@ local SHADER_TEMPLATE_M =
 @implementation {{name_no_spaces}}Material
 {
 {{#properties}}
-{{{scn_property_declare}}}
+	{{{scn_property_declare}}}
 {{/properties}}
 }
 
@@ -223,7 +223,7 @@ SceneKitExport.model =
     scn_property_header = function(self)
         local valueType = nil
         if self.type == TEXTURE2D then
-            valueType = "id"
+            valueType = "SCNMaterialProperty*"
         elseif self.type == FLOAT then
             valueType = "CGFloat"
         elseif self.type == VEC2 then
@@ -263,7 +263,7 @@ SceneKitExport.model =
         local viewModel = {}
 
         if self.type == TEXTURE2D then
-            viewModel.value_type = "id"
+            viewModel.value_type = "SCNMaterialProperty*"
             viewModel.wrapper = "value"
 			viewModel.texture = true
         elseif self.type == FLOAT then
@@ -287,13 +287,13 @@ SceneKitExport.model =
 [[
 - (void) set{{{setter_name}}}:({{{value_type}}})value
 {
-	self.{{{uniform_name}}}{{#texture}}.contents{{/texture}} = value;
-    [self setValue:{{{wrapper}}} forKey:@"{{{uniform_name}}}"];
+	self.{{{uniform_name}}} = value;
+	[self setValue:{{{wrapper}}} forKey:@"{{{uniform_name}}}"];
 }
 
 - (void) get{{{setter_name}}}
 {
-	return self.{{{uniform_name}}}{{#texture}}.contents{{/texture}};
+	return self.{{{uniform_name}}};
 }
 ]]
         return lustache:render(template, viewModel)
