@@ -280,13 +280,6 @@ THREE.{{name_no_spaces}}Shader = {
 
 };]]
 
--- {{#physical}}
--- "gl_FragColor = vec4(input_diffuse + input_emission, input_opacity);",
--- {{/physical}}
--- {{#unlit}}
--- "gl_FragColor = vec4(input_diffuse + input_emission, input_opacity);",
--- {{/unlit}}
-
 local ThreeJSExport = class(GLSLEvaluator)
 
 function ThreeJSExport:init()

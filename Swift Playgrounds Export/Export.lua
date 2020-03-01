@@ -2,126 +2,137 @@ require 'Editor/Evaluator/MSLEvaluator'
 
 -- Templates use lustache for rendering: https://github.com/Olivine-Labs/lustache
 
-local SHADER_TEMPLATE_H =
-[[//
-//  {{name_no_spaces}}.h
-//  Shade Custom Material Export for SceneKit
-//
-//  Created by John Millard on 28/1/20.
-//  Copyright © 2020 John Millard. All rights reserved.
-//
+local MAIN_TEMPLATE_MANIFEST =
+[[
 
-#import <SceneKit/SceneKit.h>
+]]
 
-NS_ASSUME_NONNULL_BEGIN
+local MAIN_TEMPLATE_SWIFT =
+[[import SceneKit
+import UIKit
+import PlaygroundSupport
+import UserModule
 
-@interface {{name_no_spaces}}Material : SCNMaterial
+public class LiveVC: UIViewController {
 
-{{#properties}}
-	{{{scn_property_header}}};
-{{/properties}}
+    let scene = SCNScene()
+    public var sceneView = SCNView(frame: CGRect(x: 0,y: 0,width: 640,height: 1080))
 
-@end
+    override public func viewDidLoad() {
+        super.viewDidLoad()
+        sceneView.scene = scene
+        view.addSubview(sceneView)
 
-NS_ASSUME_NONNULL_END]]
+        sceneView.backgroundColor = #colorLiteral(red: 0.0, green: 0.0, blue: 0.0, alpha: 1.0)
+        sceneView.showsStatistics = false
+        sceneView.autoenablesDefaultLighting = false
+        sceneView.allowsCameraControl = true
 
-local SHADER_TEMPLATE_M =
-[[//
-//  {{name_no_spaces}}Material.m
-//  Shade Custom Material Export for SceneKit
-//
-//  Created by John Millard on 28/1/20.
-//  Copyright © 2020 John Millard. All rights reserved.
-//
+        let cameraNode = SCNNode()
+        cameraNode.camera = SCNCamera()
+        cameraNode.position = SCNVector3(x: 0, y: 0, z: 12)
+        scene.rootNode.addChildNode(cameraNode)
 
-#import "{{name_no_spaces}}Material.h"
+        let geo = SCNSphere(radius: 1.0)
+        let node = SCNNode(geometry: geo)
+        node.transform = SCNMatrix4MakeRotation(Float.pi * 0.25,1,0,0)
+        scene.rootNode.addChildNode(node)
 
-@implementation {{name_no_spaces}}Material
-{
-{{#properties}}
-	{{{scn_property_declare}}}
-{{/properties}}
-}
-
-{{#properties}}
-{{{scn_property_source}}}
-{{/properties}}
-
-- (instancetype)init
-{
-    self = [super init];
-    if (self) {
-        self.lightingModelName = SCNLightingModelPhysicallyBased;
-
-        self.shaderModifiers =
-
-		@{SCNShaderModifierEntryPointGeometry :
-		@"#pragma arguments\n"
-		{{#uniforms}}
-		"{{{scn_uniform}}}\n"
-		{{/uniforms}}
-		"#pragma declaration\n"
-		"#pragma body\n"
-		"{\n"
-			{{#vert}}
-	    "	{{{scn_surface_output}}}\n"
-			{{/vert}}
-		"}\n"
-		,
-
-        SCNShaderModifierEntryPointSurface :
-		@"#pragma arguments\n"
-		{{#uniforms}}
-		"{{{scn_uniform}}}\n"
-		{{/uniforms}}
-		"#pragma declaration\n"
-		"constexpr sampler defaultSampler(coord::normalized, address::repeat, filter::linear, mip_filter::linear);\n"
-		"#pragma body\n"
-
-		"struct Functions\n"
-		"{\n"
-        "   constant commonprofile_node& scn_node;\n"
-        "   constant SCNSceneBuffer& scn_frame;\n"
-        "   thread SCNShaderSurface& _surface;\n"
-			{{#uniforms}}
-		"	{{{scn_uniform_function_struct_member}}}\n"
-			{{/uniforms}}
-			{{#frag_funcs}}
-		"	{{{.}}}\n"
-	        {{/frag_funcs}}
-		"};\n"
-		"Functions functions\n"
-		"{\n"
-		"	scn_node,\n"
-		"	scn_frame,\n"
-		"	_surface,\n"
-			{{#uniforms}}
-		"	{{{scn_uniform_function_struct_init}}},\n"
-			{{/uniforms}}
-		"};\n"
-
-		"{\n"
-			{{#frag}}
-	    "	{{{scn_surface_output}}}\n"
-			{{/frag}}
-		"}\n"
-        };
-
-        {{#properties}}
-        {{{scn_property_init}}}
-        {{/properties}}
+        geo.firstMaterial = {{{name_no_spaces}}}()
     }
-    return self;
 }
+var vc = LiveVC()
+PlaygroundPage.current.liveView = vc
+PlaygroundPage.current.needsIndefiniteExecution = true]]
 
-@end]]
+local SHADER_TEMPLATE_SWIFT =
+[[
+
+import SceneKit
+import UIKit
+
+public final class {{{name_no_spaces}}}Material: SCNMaterial {
+
+    public required init?(coder: NSCoder) {
+        super.init(coder: coder)
+    }
+    public override init() {
+        super.init()
+
+		let vertShader =
+"""
+#pragma arguments
+{{#uniforms}}
+{{{scn_uniform}}}
+{{/uniforms}}
+#pragma declaration
+#pragma body
+{
+	{{#vert}}
+	{{{scn_surface_output}}}
+	{{/vert}}
+}
+"""
+
+        let fragShader =
+"""
+#pragma arguments
+{{#uniforms}}
+{{{scn_uniform}}}
+{{/uniforms}}
+#pragma declaration
+constexpr sampler defaultSampler(coord::normalized, address::repeat, filter::linear, mip_filter::linear);
+#pragma body
+
+struct Functions
+{
+   constant commonprofile_node& scn_node;
+   constant SCNSceneBuffer& scn_frame;
+   thread SCNShaderSurface& _surface;
+	{{#uniforms}}
+	{{{scn_uniform_function_struct_member}}}
+	{{/uniforms}}
+	{{#frag_funcs}}
+	{{{.}}}
+	{{/frag_funcs}}
+};
+Functions functions
+{
+	scn_node,
+	scn_frame,
+	_surface,
+	{{#uniforms}}
+	{{{scn_uniform_function_struct_init}}},
+	{{/uniforms}}
+};
+
+{
+	{{#frag}}
+	{{{scn_surface_output}}}
+	{{/frag}}
+}
+"""
+        shaderModifiers = [.vertex: vertShader, .fragment: fragShader]
+        //setValue(SCNVector3(1.0, 0.8, 0.6), forKey:"lazerCol")
+    }
+
+    //var lazerCol: SCNVector3 = SCNVector3(0.5, 0.8, 0.5) {
+    //    didSet {
+    //        setValue(lazerCol, forKey:"lazerCol")
+    //    }
+    //}
+}]]
 
 local SceneKitExport = class(MSLEvaluator)
 
 function SceneKitExport:init()
     MSLEvaluator.init(self)
-	self:addTemplate("{{name_no_spaces}}Material.h", SHADER_TEMPLATE_H)
-    self:addTemplate("{{name_no_spaces}}Material.m", SHADER_TEMPLATE_M)
+	self:addTemplate("Contents/Chapters/Chapter1.playgroundchapter/Pages/My Playground.playgroundpage/main.swift", MAIN_TEMPLATE_SWIFT)
+    self:addTemplate("Contents/UserModules/UserModule.playgroundmodule/Source/{{name_no_spaces}}Material.swift", SHADER_TEMPLATE_SWIFT)
+end
+
+function SceneKitExport:onExport(name)
+	return name..".playgroundbook"
 end
 
 function SceneKitExport:onSaveImage(name)
@@ -131,7 +142,7 @@ function SceneKitExport:onSaveImage(name)
 	-- Check if image is actually used
 	for _, prop in pairs(self.viewModel[TAG_PROPERTIES]) do
 		if name:removeExtension() == prop.default then
-			return "Images/" .. name
+			return "Resources/" .. name
 		end
 	end
 
