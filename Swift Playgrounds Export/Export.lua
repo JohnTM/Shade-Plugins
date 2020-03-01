@@ -152,7 +152,7 @@ function SceneKitExport:onSaveImage(name)
 	-- Check if image is actually used
 	for _, prop in pairs(self.viewModel[TAG_PROPERTIES]) do
 		if name:removeExtension() == prop.default then
-			return "Contents/UserResources/" .. name
+			return "Edits/UserResources/" .. name
 		end
 	end
 
@@ -315,7 +315,7 @@ var {{{setter_name}}} : {{{value_type}}} = {{{value}}} {
         viewModel.property_name = self.uniform_name:gsub("_", "")
 		viewModel.uniform_name = self.uniform_name
 
-        local template = 'setValue({{{property_name}}}, forKey:"{{{uniform_name}}}";'
+        local template = 'setValue({{{value}}}, forKey:"{{{uniform_name}}}");'
         return lustache:render(template, viewModel)
     end
 }
