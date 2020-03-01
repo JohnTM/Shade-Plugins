@@ -34,7 +34,7 @@ public class LiveVC: UIViewController {
 		cameraNode.camera?.zNear = 0.01
         scene.rootNode.addChildNode(cameraNode)
 
-        let geo = SCNSphere(radius: 1.0)
+        let geo = SCNSphere(radius: 0.08)
 		geo.segmentCount = 1000
         let node = SCNNode(geometry: geo)
         scene.rootNode.addChildNode(node)
