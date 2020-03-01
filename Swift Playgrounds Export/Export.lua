@@ -38,7 +38,7 @@ public class LiveVC: UIViewController {
         node.transform = SCNMatrix4MakeRotation(Float.pi * 0.25,1,0,0)
         scene.rootNode.addChildNode(node)
 
-        geo.firstMaterial = {{{name_no_spaces}}}()
+        geo.firstMaterial = {{{name_no_spaces}}}Material()
     }
 }
 var vc = LiveVC()
@@ -112,7 +112,7 @@ Functions functions
 	{{/frag}}
 }
 """
-        shaderModifiers = [.vertex: vertShader, .fragment: fragShader]
+        shaderModifiers = [.geometry: vertShader, .fragment: fragShader]
         //setValue(SCNVector3(1.0, 0.8, 0.6), forKey:"lazerCol")
     }
 
@@ -179,11 +179,11 @@ local SURFACE_OUTPUTS =
     [TAG_INPUT_EMISSION] = function(self) return string.format("_surface.emission = float4(%s, 0.0);", self.code) end,
     [TAG_INPUT_NORMAL] = function(self)
 		return string.format(
-[[{\n"
-"  		_surface._normalTS = %s;\n"
-"		float3x3 ts2vs = float3x3(_surface.tangent, _surface.bitangent, _surface.normal);\n"
-"		_surface.normal.rgb = normalize(ts2vs * _surface._normalTS.xyz);\n"
-"}]], self.code)
+[[{
+  		_surface._normalTS = %s;
+		float3x3 ts2vs = float3x3(_surface.tangent, _surface.bitangent, _surface.normal);
+		_surface.normal.rgb = normalize(ts2vs * _surface._normalTS.xyz);
+}]], self.code)
 	end,
     [TAG_INPUT_OPACITY] = function(self) return string.format("_surface.transparent = float4(%s);", self.code) end,
     [TAG_INPUT_ROUGHNESS] = function(self) return string.format("_surface.roughness = %s;", self.code) end,
@@ -251,82 +251,36 @@ SceneKitExport.model =
         end
     end,
 
-    scn_property_header = function(self)
-        local valueType = nil
-		local mode = "assign"
-        if self.type == TEXTURE2D then
-            valueType = "SCNMaterialProperty*"
-			mode = "strong"
-        elseif self.type == FLOAT then
-            valueType = "CGFloat"
-        elseif self.type == VEC2 then
-            valueType = "CGPoint"
-        elseif self.type == VEC3 then
-            valueType = "SCNVector3"
-        elseif self.type == VEC4 then
-            valueType = "SCNVector4"
-        end
-
-        local name = self.uniform_name:gsub("_", "")
-
-        return string.format("@property(nonatomic, %s) %s %s", mode, valueType, name)
-    end,
-
-	scn_property_declare = function(self)
-        local viewModel = {}
-		viewModel.uniform_name = self.uniform_name
-
-        if self.type == TEXTURE2D then
-            viewModel.value_type = "SCNMaterialProperty*"
-        elseif self.type == FLOAT then
-            viewModel.value_type = "CGFloat"
-        elseif self.type == VEC2 then
-            viewModel.value_type = "CGPoint"
-        elseif self.type == VEC3 then
-            viewModel.value_type = "SCNVector3"
-        elseif self.type == VEC4 then
-            viewModel.value_type = "SCNVector4"
-        end
-
-        local template = "{{{value_type}}} {{{uniform_name}}};"
-        return lustache:render(template, viewModel)
-    end,
-
     scn_property_source = function(self)
         local viewModel = {}
 
         if self.type == TEXTURE2D then
-            viewModel.value_type = "SCNMaterialProperty*"
-            viewModel.wrapper = "value"
+            viewModel.value_type = "SCNMaterialProperty"
+			viewModel.value = string.format('SCNMaterialProperty(contents:"%s.png"]', self.default)
 			viewModel.texture = true
         elseif self.type == FLOAT then
             viewModel.value_type = "CGFloat"
-            viewModel.wrapper = "[NSNumber numberWithFloat:value]"
+			viewModel.value = string.format("%f", self.default)
         elseif self.type == VEC2 then
             viewModel.value_type = "CGPoint"
-            viewModel.wrapper = "[NSValue valueWithPoint:NSMakePoint(value.x, value.y)]"
+            viewModel.value = string.format("CGPoint(%f, %f)", self.default[1], self.default[2])
         elseif self.type == VEC3 then
             viewModel.value_type = "SCNVector3"
-            viewModel.wrapper = "[NSValue valueWithSCNVector3:value]"
+            viewModel.value = string.format("SCNVector3(%f, %f, %f)", self.default[1], self.default[2], self.default[3])
         elseif self.type == VEC4 then
             viewModel.value_type = "SCNVector4"
-            viewModel.wrapper = "[NSValue valueWithSCNVector4:value]"
+            viewModel.value = string.format("SCNVector4(%f, %f, %f, %f)", self.default[1], self.default[2], self.default[3], self.default[4])
         end
 
-        viewModel.setter_name = self.uniform_name:gsub("_", ""):titlecase()
+        viewModel.setter_name = self.uniform_name:gsub("_", "")
         viewModel.uniform_name = self.uniform_name
 
         local template =
 [[
-- (void) set{{{setter_name}}}:({{{value_type}}})value
-{
-	self->{{{uniform_name}}} = value;
-	[self setValue:{{{wrapper}}} forKey:@"{{{uniform_name}}}"];
-}
-
-- ({{{value_type}}}) get{{{setter_name}}}
-{
-	return self->{{{uniform_name}}};
+var {{{setter_name}}} : {{{value_type}}} = {{{value}}} {
+	didSet {
+		setValue({{{setter_name}}}, forKey:"{{{uniform_name}}}")
+	}
 }
 ]]
         return lustache:render(template, viewModel)
@@ -351,17 +305,7 @@ SceneKitExport.model =
         viewModel.property_name = self.uniform_name:gsub("_", "")
 		viewModel.uniform_name = self.uniform_name
 
-        local template =
-[[{{#texture}}
-self->{{{uniform_name}}} = {{{value}}};
-self->{{{uniform_name}}}.wrapS = SCNWrapModeRepeat;
-self->{{{uniform_name}}}.wrapT = SCNWrapModeRepeat;
-[self setValue:self->{{{uniform_name}}} forKey:@"{{{uniform_name}}}"];
-{{/texture}}
-{{^texture}}
-self.{{{property_name}}} = {{{value}}};
-{{/texture}}
-]]
+        local template = 'setValue({{{property_name}}}, forKey:"{{{uniform_name}}}";'
         return lustache:render(template, viewModel)
     end
 }
