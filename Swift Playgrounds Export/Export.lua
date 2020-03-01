@@ -59,6 +59,8 @@ public final class {{{name_no_spaces}}}Material: SCNMaterial {
     public override init() {
         super.init()
 
+		lightingModel = .physicallyBased
+
 		let vertShader =
 """
 #pragma arguments
@@ -113,8 +115,15 @@ Functions functions
 }
 """
         shaderModifiers = [.geometry: vertShader, .fragment: fragShader]
-        //setValue(SCNVector3(1.0, 0.8, 0.6), forKey:"lazerCol")
+
+		{{#properties}}
+		{{{scn_property_init}}}
+		{{/properties}}
     }
+
+	{{#properties}}
+	{{{scn_property_source}}}
+	{{/properties}}
 
     //var lazerCol: SCNVector3 = SCNVector3(0.5, 0.8, 0.5) {
     //    didSet {
