@@ -113,7 +113,7 @@ Functions functions
 	{{/frag}}
 }
 """
-        shaderModifiers = [.geometry: vertShader, .fragment: fragShader]
+        shaderModifiers = [.geometry: vertShader, .surface: fragShader]
 
 		{{#properties}}
 		{{{scn_property_init}}}
