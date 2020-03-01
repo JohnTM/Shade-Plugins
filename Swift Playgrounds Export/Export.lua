@@ -128,7 +128,7 @@ local SceneKitExport = class(MSLEvaluator)
 function SceneKitExport:init()
     MSLEvaluator.init(self)
 	self:addTemplate("Contents/Chapters/Chapter1.playgroundchapter/Pages/My Playground.playgroundpage/main.swift", MAIN_TEMPLATE_SWIFT)
-    self:addTemplate("Contents/UserModules/UserModule.playgroundmodule/Source/{{name_no_spaces}}Material.swift", SHADER_TEMPLATE_SWIFT)
+    self:addTemplate("Contents/UserModules/UserModule.playgroundmodule/Sources/{{name_no_spaces}}Material.swift", SHADER_TEMPLATE_SWIFT)
 end
 
 function SceneKitExport:onExport(name)
