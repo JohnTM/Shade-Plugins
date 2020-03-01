@@ -16,7 +16,7 @@ import UserModule
 public class LiveVC: UIViewController {
 
     let scene = SCNScene()
-    public var sceneView = SCNView(frame: CGRect(x: 0,y: 0,width: 640,height: 1080))
+    public var sceneView = SCNView(frame: CGRect(x: 0,y: 0,width: 530, height: 800))
 
     override public func viewDidLoad() {
         super.viewDidLoad()
@@ -25,17 +25,16 @@ public class LiveVC: UIViewController {
 
         sceneView.backgroundColor = #colorLiteral(red: 0.0, green: 0.0, blue: 0.0, alpha: 1.0)
         sceneView.showsStatistics = false
-        sceneView.autoenablesDefaultLighting = false
+        sceneView.autoenablesDefaultLighting = true
         sceneView.allowsCameraControl = true
 
         let cameraNode = SCNNode()
         cameraNode.camera = SCNCamera()
-        cameraNode.position = SCNVector3(x: 0, y: 0, z: 12)
+        cameraNode.position = SCNVector3(x: 0, y: 0, z: 5)
         scene.rootNode.addChildNode(cameraNode)
 
         let geo = SCNSphere(radius: 1.0)
         let node = SCNNode(geometry: geo)
-        node.transform = SCNMatrix4MakeRotation(Float.pi * 0.25,1,0,0)
         scene.rootNode.addChildNode(node)
 
         geo.firstMaterial = {{{name_no_spaces}}}Material()
@@ -121,9 +120,6 @@ Functions functions
 		{{/properties}}
     }
 
-	{{#properties}}
-	{{{scn_property_source}}}
-	{{/properties}}
 
     //var lazerCol: SCNVector3 = SCNVector3(0.5, 0.8, 0.5) {
     //    didSet {
@@ -131,6 +127,11 @@ Functions functions
     //    }
     //}
 }]]
+
+-- {{#properties}}
+-- {{{scn_property_source}}}
+-- {{/properties}}
+
 
 local SceneKitExport = class(MSLEvaluator)
 
@@ -151,7 +152,7 @@ function SceneKitExport:onSaveImage(name)
 	-- Check if image is actually used
 	for _, prop in pairs(self.viewModel[TAG_PROPERTIES]) do
 		if name:removeExtension() == prop.default then
-			return "Resources/" .. name
+			return "Contents/UserResources/" .. name
 		end
 	end
 
@@ -299,16 +300,16 @@ var {{{setter_name}}} : {{{value_type}}} = {{{value}}} {
         local viewModel = {}
 
         if self.type == TEXTURE2D then
-            viewModel.value = string.format('[SCNMaterialProperty materialPropertyWithContents:@"%s.png"]', self.default)
+            viewModel.value = string.format('SCNMaterialProperty(contents:#imageLiteral(resourceName: "%s.png"))', self.default)
 			viewModel.texture = true
         elseif self.type == FLOAT then
             viewModel.value = string.format("%f", self.default)
         elseif self.type == VEC2 then
-            viewModel.value = string.format("CGPointMake(%f, %f)", self.default[1], self.default[2])
+            viewModel.value = string.format("CGPoint(%f, %f)", self.default[1], self.default[2])
         elseif self.type == VEC3 then
-            viewModel.value = string.format("SCNVector3Make(%f, %f, %f)", self.default[1], self.default[2], self.default[3])
+            viewModel.value = string.format("SCNVector3(%f, %f, %f)", self.default[1], self.default[2], self.default[3])
         elseif self.type == VEC4 then
-            viewModel.value = string.format("SCNVector4Make(%f, %f, %f, %f)", self.default[1], self.default[2], self.default[3], self.default[4])
+            viewModel.value = string.format("SCNVector4(%f, %f, %f, %f)", self.default[1], self.default[2], self.default[3], self.default[4])
         end
 
         viewModel.property_name = self.uniform_name:gsub("_", "")
