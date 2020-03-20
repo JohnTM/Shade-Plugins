@@ -207,6 +207,20 @@ function UnityExport:clear()
     end
 end
 
+function UnityExport:onSaveImage(name)
+	-- Ignore icon images
+	if name:find("Icon@2x") then return nil end
+
+	-- Check if image is actually used
+	for _, prop in pairs(self.viewModel[TAG_PROPERTIES]) do
+		if name:removeExtension() == prop.default then
+			return name
+		end
+	end
+
+	return nil
+end
+
 local SURFACE_OUTPUTS =
 {
     [TAG_INPUT_DIFFUSE] = "Albedo",
@@ -284,6 +298,10 @@ UnityExport.model =
         end
 
         return code
+    end,
+
+    unity_uniform = function(self)
+        return string.format("uniform %s %s;", self.value_type, self.name)
     end,
 
     -- Convert vertex outputs into shader code
