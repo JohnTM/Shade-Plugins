@@ -221,6 +221,25 @@ function UnityExport:onSaveImage(name)
 	return nil
 end
 
+function UnityExport:addUniform(name, valueType, precision)
+    -- Unity already has a time value defined by default
+    if name == "time" then
+        return "_time"
+    end
+
+    return HLSLEvaluator.addUniform(self, name, valueType, precision)
+end
+
+function UnityExport:addProperty(name, valueType, default, options)
+    -- Unity already has a time value defined by default
+    if name == "time" then
+        return
+    end
+
+    HLSLEvaluator.addProperty(self, name, valueType, default, options)
+end
+
+
 local SURFACE_OUTPUTS =
 {
     [TAG_INPUT_DIFFUSE] = "Albedo",
@@ -275,7 +294,7 @@ UnityExport.model =
             valueType = "2D"
             default = '"white" = {}'
         elseif self.type == FLOAT then
-            if control == INPUT_CONTROL_NUMBER then
+            if control == INPUT_CONTROL_NUMBER or control == nil then
                 valueType = "Float"
                 default = default or "0.0"
             elseif control == INPUT_CONTROL_SLIDER then
@@ -460,7 +479,9 @@ UnityExport.syntax =
     end,
 
     textureSize = function(self, tex)
-        return "vec2(0.0, 0.0)"
+        self:addUniform(tex, "sampler2D")
+        local uniform = self:addUniform(tex.."_TexelSize", VEC4)
+        return uniform..".zw"
     end,
 
     cameraPosition = function(self)
