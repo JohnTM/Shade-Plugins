@@ -1,5 +1,3 @@
-# Readme
-
 ## Shade-Plugins (Pro Version Only)
 
 Shade now supports custom export plugins. This is an experimental feature, allowing for custom export options of shaders to different platforms/engines.
