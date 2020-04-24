@@ -262,7 +262,7 @@ THREE.{{name_no_spaces}}Shader = {
         	"gl_FragColor = vec4( outgoingLight, diffuseColor.a );",
             {{/physical}}
             {{#unlit}}
-            "gl_FragColor = vec4( diffuseColor.rgb + emissive, diffuseColor.a );"
+            "gl_FragColor = vec4( diffuseColor.rgb + emissive, diffuseColor.a );",
             {{/unlit}}
 
         	"#include <tonemapping_fragment>",
