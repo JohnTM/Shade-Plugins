@@ -224,6 +224,12 @@ THREE.{{name_no_spaces}}Shader = {
         "{{{three_uniform}}}",
         {{/uniforms}}
 
+        "float remap(float target, float fromLow, float fromHigh, float toLow, float toHigh){",
+            "float delta = (target - fromLow) / (fromHigh - fromLow);",
+            "float toRange = toHigh - toLow;",
+            "return toLow + toRange * delta;",
+        "}",
+
 		"void main() {",
             {{#frag}}
             "{{{three_surface_output}}}",
