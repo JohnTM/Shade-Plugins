@@ -143,6 +143,10 @@ THREE.{{name_no_spaces}}Shader = {
         "{{{three_uniform}}}",
         {{/uniforms}}
 
+		{{#vert_funcs}}
+		{{{.}}}
+		{{/vert_funcs}}
+
 		"void main() {",
 
             "vUv = uv;",
@@ -223,6 +227,10 @@ THREE.{{name_no_spaces}}Shader = {
         {{#uniforms}}
         "{{{three_uniform}}}",
         {{/uniforms}}
+
+		{{#frag_funcs}}
+		{{{.}}}
+		{{/frag_funcs}}
 
 		"void main() {",
             {{#frag}}
