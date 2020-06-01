@@ -143,6 +143,10 @@ THREE.{{name_no_spaces}}Shader = {
         "{{{three_uniform}}}",
         {{/uniforms}}
 
+		{{#vert_funcs}}
+		{{{.}}}
+		{{/vert_funcs}}
+
 		"void main() {",
 
             "vUv = uv;",
@@ -224,11 +228,9 @@ THREE.{{name_no_spaces}}Shader = {
         "{{{three_uniform}}}",
         {{/uniforms}}
 
-        "float remap(float target, float fromLow, float fromHigh, float toLow, float toHigh){",
-            "float delta = (target - fromLow) / (fromHigh - fromLow);",
-            "float toRange = toHigh - toLow;",
-            "return toLow + toRange * delta;",
-        "}",
+		{{#frag_funcs}}
+		{{{.}}}
+		{{/frag_funcs}}
 
 		"void main() {",
             {{#frag}}
