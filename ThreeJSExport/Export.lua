@@ -247,7 +247,7 @@ THREE.{{name_no_spaces}}Shader = {
 
             {{#physical}}
         	"ReflectedLight reflectedLight = ReflectedLight( vec3( 0.0 ), vec3( 0.0 ), vec3( 0.0 ), vec3( 0.0 ) );",
-        	"vec3 totalEmissiveRadiance = emissive;",
+        	"vec3 totalEmissiveRadiance = input_emission;",
 
         	"#include <logdepthbuf_fragment>",
         	"#include <map_fragment>",
