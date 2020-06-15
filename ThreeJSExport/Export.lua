@@ -143,6 +143,10 @@ THREE.{{name_no_spaces}}Shader = {
         "{{{three_uniform}}}",
         {{/uniforms}}
 
+		{{#vert_funcs}}
+		{{{.}}}
+		{{/vert_funcs}}
+
 		"void main() {",
 
             "vUv = uv;",
@@ -224,6 +228,10 @@ THREE.{{name_no_spaces}}Shader = {
         "{{{three_uniform}}}",
         {{/uniforms}}
 
+		{{#frag_funcs}}
+		{{{.}}}
+		{{/frag_funcs}}
+
 		"void main() {",
             {{#frag}}
             "{{{three_surface_output}}}",
@@ -239,7 +247,7 @@ THREE.{{name_no_spaces}}Shader = {
 
             {{#physical}}
         	"ReflectedLight reflectedLight = ReflectedLight( vec3( 0.0 ), vec3( 0.0 ), vec3( 0.0 ), vec3( 0.0 ) );",
-        	"vec3 totalEmissiveRadiance = emissive;",
+        	"vec3 totalEmissiveRadiance = input_emission;",
 
         	"#include <logdepthbuf_fragment>",
         	"#include <map_fragment>",
@@ -262,7 +270,7 @@ THREE.{{name_no_spaces}}Shader = {
         	"gl_FragColor = vec4( outgoingLight, diffuseColor.a );",
             {{/physical}}
             {{#unlit}}
-            "gl_FragColor = vec4( diffuseColor.rgb + emissive, diffuseColor.a );"
+            "gl_FragColor = vec4( diffuseColor.rgb + emissive, diffuseColor.a );",
             {{/unlit}}
 
         	"#include <tonemapping_fragment>",
@@ -520,7 +528,7 @@ ThreeJSExport.syntax =
     -- end,
     --
     -- texture2DLod = function(self, sampler, uv, lod)
-    --     return string.format("tex2DLod(%s, %s)", sampler, uv)
+    --     return string.format("tex2Dlod(%s, %s)", sampler, uv)
     -- end,
     --
     -- textureSize = function(self, tex)

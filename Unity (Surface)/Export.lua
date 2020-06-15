@@ -292,7 +292,7 @@ UnityExport.model =
 
         if self.type == TEXTURE2D then
             valueType = "2D"
-            default = '"white" = {}'
+            default = '"white" {}'
         elseif self.type == FLOAT then
             if control == INPUT_CONTROL_NUMBER or control == nil then
                 valueType = "Float"
@@ -475,7 +475,7 @@ UnityExport.syntax =
     end,
 
     texture2DLod = function(self, sampler, uv, lod)
-        return string.format("tex2DLod(%s, %s)", sampler, uv)
+        return string.format("tex2Dlod(%s, %s)", sampler, uv)
     end,
 
     textureSize = function(self, tex)
