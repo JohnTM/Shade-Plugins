@@ -514,7 +514,7 @@ UnityExport.syntax =
     end,
 
     texture2DLod = function(self, sampler, uv, lod)
-        return string.format("tex2DLod(%s, %s)", sampler, uv)
+        return string.format("tex2Dlod(%s, %s)", sampler, uv)
     end,
 
     textureSize = function(self, tex)
