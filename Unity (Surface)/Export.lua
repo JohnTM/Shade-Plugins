@@ -189,6 +189,10 @@ function UnityExport:init()
     self:addTemplate("Unity.shader", template)
 end
 
+function UnityExport:onExport(name)
+	return name.." Shader"
+end
+
 function UnityExport:clear()
     HLSLEvaluator.clear(self)
 
@@ -475,7 +479,7 @@ UnityExport.syntax =
     end,
 
     texture2DLod = function(self, sampler, uv, lod)
-        return string.format("tex2Dlod(%s, %s)", sampler, uv)
+        return string.format("tex2Dlod(%s, float4(%s, 0.0, %s))", sampler, uv, lod)
     end,
 
     textureSize = function(self, tex)

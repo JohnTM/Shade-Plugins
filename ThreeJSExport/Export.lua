@@ -313,6 +313,10 @@ function ThreeJSExport:clear()
         self.viewModel[k] = v
     end
 end
+                    
+function ThreeJSExport:onExport(name)
+	return name.." Shader"
+end
 
 local SURFACE_OUTPUTS =
 {

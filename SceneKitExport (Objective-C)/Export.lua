@@ -124,6 +124,10 @@ function SceneKitExport:init()
     self:addTemplate("{{name_no_spaces}}Material.m", SHADER_TEMPLATE_M)
 end
 
+function SceneKitExport:onExport(name)
+	return name.." Shader"
+end
+
 function SceneKitExport:onSaveImage(name)
 	-- Ignore icon images
 	if name:find("Icon@2x") then return nil end
