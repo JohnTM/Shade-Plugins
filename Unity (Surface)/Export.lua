@@ -73,8 +73,11 @@ Shader "Shade/{{{name}}}"
             float3 objectPos;
         {{/read_object_pos}}
         {{#read_world_normal}}
-            float3 worldNormal; {{#write_normal}}INTERNAL_DATA{{/write_normal}}
+            float3 worldNormal;
         {{/read_world_normal}}
+        {{#write_normal}}
+            INTERNAL_DATA
+        {{/write_normal}}
         {{#read_normal}}
             float3 normal;
         {{/read_normal}}
@@ -438,6 +441,75 @@ local UNITY_VIEW_DIR =
     }
 }
 
+local UNITY_CONVERT_SPACE_VERT =
+{
+    [OBJECT_SPACE] =
+    {
+        [VIEW_SPACE] = "float3 objectToViewSpace(in appdata_full v, in float4 p) { return mul(UNITY_MATRIX_MV, p).xyz; }",
+        [WORLD_SPACE] = "float3 objectToWorldSpace(in appdata_full v, in float4 p) { return mul(unity_ObjectToWorld, p).xyz; }",
+        [TANGENT_SPACE] = "float3 objectToTangentSpace(in appdata_full v, in float4 p) { return p; }",
+    },
+
+    [VIEW_SPACE] =
+    {
+        [OBJECT_SPACE] = "float3 viewToObjectSpace(in appdata_full v, float4 p) { return mul(inverse(UNITY_MATRIX_MV), p).xyz; }",
+        [WORLD_SPACE] = "float3 viewToWorldSpace(in appdata_full v, float4 p) { return mul(inverse(UNITY_MATRIX_V), p).xyz; }",
+        [TANGENT_SPACE] = "float3 viewToTangentSpace(in appdata_full v, float4 p) { return p; }"
+    },
+
+    [WORLD_SPACE] =
+    {
+        [OBJECT_SPACE] = "float3 worldToObjectSpace(in appdata_full v, float4 p) { return mul(unity_WorldToObject, p).xyz; }",
+        [VIEW_SPACE] = "float3 worldToViewSpace(in appdata_full v, float4 p) { return mul(UNITY_MATRIX_MV, mul(unity_WorldToObject, p)).xyz; }",
+        [TANGENT_SPACE] = "float3 worldToTangentSpace(in appdata_full v, float4 p) { return p; }"
+    },
+
+    [TANGENT_SPACE] =
+    {
+        [OBJECT_SPACE] = "",
+        [VIEW_SPACE] = "",
+        [WORLD_SPACE] = "float3 tangentToWorldSpace(in appdata_full v, float4 p) { TANGENT_SPACE_ROTATION; return mul(rotation, p); }"
+    }
+}
+
+local UNITY_CONVERT_SPACE_FRAG =
+{
+    [OBJECT_SPACE] =
+    {
+        [VIEW_SPACE] = "float3 objectToViewSpace(Input IN, in float4 p) { return mul(UNITY_MATRIX_MV, p).xyz; }",
+        [WORLD_SPACE] = "float3 objectToWorldSpace(Input IN, in float4 p) { return mul(unity_ObjectToWorld, p).xyz; }",
+        [TANGENT_SPACE] = "float3 objectToTangentSpace(Input IN, in float4 p) { return p; }",
+    },
+
+    [VIEW_SPACE] =
+    {
+        [OBJECT_SPACE] = "float3 viewToObjectSpace(Input IN, float4 p) { return mul(inverse(UNITY_MATRIX_MV), p).xyz; }",
+        [WORLD_SPACE] = "float3 viewToWorldSpace(Input IN, float4 p) { return mul(inverse(UNITY_MATRIX_V), p).xyz; }",
+        [TANGENT_SPACE] = "float3 viewToTangentSpace(Input IN, float4 p) { return p; }"
+    },
+
+    [WORLD_SPACE] =
+    {
+        [OBJECT_SPACE] = "float3 worldToObjectSpace(Input IN, float4 p) { return mul(unity_WorldToObject, p).xyz; }",
+        [VIEW_SPACE] = "float3 worldToViewSpace(Input IN, float4 p) { return mul(UNITY_MATRIX_MV, mul(unity_WorldToObject, p)).xyz; }",
+        [TANGENT_SPACE] = "float3 worldToTangentSpace(Input IN, float4 p) { return p; }"
+    },
+
+    [TANGENT_SPACE] =
+    {
+        [OBJECT_SPACE] = "",
+        [VIEW_SPACE] = "",
+        [WORLD_SPACE] = "float3 tangentToWorldSpace(in appdata_full v, float4 p) { TANGENT_SPACE_ROTATION; return mul(rotation, p); }"
+    }
+}
+
+local UNITY_CONVERT_SPACE =
+{
+    [TAG_VERT] = UNITY_CONVERT_SPACE_VERT,
+    [TAG_FRAG] = UNITY_CONVERT_SPACE_FRAG,
+}
+
+
 
 -- Exporters require syntax for various primitive elements to be defined
 UnityExport.syntax =
@@ -472,6 +544,25 @@ UnityExport.syntax =
         end
 
         return UNITY_VIEW_DIR[self:tag()][space]
+    end,
+
+    convertSpace = function(self, value, from, to, w)
+        if from == to then return value end
+
+        local conversionFunction = nil
+
+        conversionFunction = string.format("%sTo%sSpace", from, to:titlecase())
+
+        -- Inject conversion function
+        self:lineUnique(self:funcTag(), UNITY_CONVERT_SPACE[self:tag()][from][to])
+
+        if self:tag() == TAG_FRAG then
+            return string.format("%s(IN, float4(%s, %s))", conversionFunction, value, w)
+        else
+            return string.format("%s(v, float4(%s, %s))", conversionFunction, value, w)
+        end
+
+        return value
     end,
 
     texture2D = function(self, sampler, uv)
