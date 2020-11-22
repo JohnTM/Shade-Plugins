@@ -193,7 +193,7 @@ function UnityExport:init()
 end
 
 function UnityExport:onExport(name)
-	return name.." Shader"
+	return name..".shader"
 end
 
 function UnityExport:clear()
