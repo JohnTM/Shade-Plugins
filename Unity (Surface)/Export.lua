@@ -33,26 +33,23 @@ Shader "Shade/{{{name}}}"
         CGPROGRAM
 
         #pragma target 4.0
-        {{#physical}}
+        {{#grab_pass}}
 
-        // Physically based Standard lighting model, and enable shadows on all light types
-        #pragma surface surf Standard vertex:vert{{#behind}} finalcolor:customColor{{/behind}} fullforwardshadows addshadow
-        {{/physical}}
-        {{#unlit}}
+        sampler2D _BackgroundTexture;
 
-        // Unlit model
-        #pragma surface surf NoLighting vertex:vert{{#behind}} finalcolor:customColor{{/behind}} noforwardadd addshadow
+        {{/grab_pass}}
+        {{#read_depth_texture}}
 
-        fixed4 LightingNoLighting(SurfaceOutput s, fixed3 lightDir, fixed atten)
+        sampler2D_float _CameraDepthTexture;
+        float4 _CameraDepthTexture_TexelSize;
+
+        {{/read_depth_texture}}
+        {{#uniforms}}
+        {{{unity_uniform}}}
+        {{/uniforms}}
+
+        struct Input
         {
-            fixed4 c;
-            c.rgb = s.Albedo + s.Emission.rgb;
-            c.a = s.Alpha;
-            return c;
-        }
-
-        {{/unlit}}
-        struct Input {
             float2 texcoord : TEXCOORD0;
         {{#read_screen_pos}}
             float4 screenPos : TEXCOORD1;
@@ -89,27 +86,61 @@ Shader "Shade/{{{name}}}"
         {{/read_facing}}
             float4 color : COLOR;
         };
-
-        {{#uniforms}}
-        {{{unity_uniform}}}
-        {{/uniforms}}
-        {{#grab_pass}}
-
-        sampler2D _BackgroundTexture;
-
-        {{/grab_pass}}
-        {{#read_depth_texture}}
-
-        sampler2D_float _CameraDepthTexture;
-        float4 _CameraDepthTexture_TexelSize;
-
-        {{/read_depth_texture}}
         {{#vert_funcs}}
         {{{.}}}
         {{/vert_funcs}}
         {{#frag_funcs}}
         {{{.}}}
         {{/frag_funcs}}
+        {{#physical}}
+
+        // Physically based Standard lighting model, and enable shadows on all light types
+        #pragma surface surf Standard vertex:vert{{#behind}} finalcolor:customColor{{/behind}} fullforwardshadows addshadow
+        {{/physical}}
+        {{#unlit}}
+
+        // Unlit model
+        #pragma surface surf NoLighting vertex:vert{{#behind}} finalcolor:customColor{{/behind}} noforwardadd addshadow
+
+        fixed4 LightingNoLighting(SurfaceOutput s, fixed3 lightDir, fixed atten)
+        {
+            fixed4 c;
+            c.rgb = s.Albedo + s.Emission.rgb;
+            c.a = s.Alpha;
+            return c;
+        }
+
+        {{/unlit}}
+        {{#custom}}
+
+        // Custom model
+        #pragma surface surf Custom vertex:vert{{#behind}} finalcolor:customColor{{/behind}} fullforwardshadows addshadow
+
+        struct SurfaceOutputCustom
+        {
+            fixed3 Albedo;      // base (diffuse or specular) color
+            float3 Normal;      // tangent space normal, if written
+            half3 Emission;
+            fixed Alpha;        // alpha for transparencies
+
+            Input IN;
+        };
+
+        #include "UnityPBSLighting.cginc"
+        inline fixed4 LightingCustom(SurfaceOutputCustom s, half3 viewDir, UnityGI gi)
+        {
+            {{#lighting}}
+            {{{unity_lighting}}}
+            {{/lighting}}
+            return saturate(outgoingLight);
+        }
+
+        inline void LightingCustom_GI(SurfaceOutputCustom s, UnityGIInput data, inout UnityGI gi)
+        {
+            //LightingStandard_GI(s, data, gi);
+        }
+
+        {{/custom}}
         {{#physical}}
         {{#behind}}
 
@@ -135,6 +166,18 @@ Shader "Shade/{{{name}}}"
 
         {{/behind}}
         {{/unlit}}
+        {{#custom}}
+        {{#behind}}
+
+        void customColor (Input IN, SurfaceOutput o, inout fixed4 color)
+        {
+        #ifndef UNITY_PASS_FORWARDADD
+        {{{behind}}}
+        #endif
+        }
+
+        {{/behind}}
+        {{/custom}}
         void vert (inout appdata_full v, out Input o)
         {
             UNITY_INITIALIZE_OUTPUT(Input, o);
@@ -175,10 +218,16 @@ Shader "Shade/{{{name}}}"
         {{#unlit}}
         void surf (Input IN, inout SurfaceOutput o)
         {{/unlit}}
+        {{#custom}}
+        void surf (Input IN, inout SurfaceOutputCustom o)
+        {{/custom}}
         {
         {{#frag}}
             {{{unity_surface_output}}}
         {{/frag}}
+        {{#custom}}
+            o.IN = IN;
+        {{/custom}}
         }
         ENDCG
     }
@@ -206,7 +255,8 @@ function UnityExport:clear()
         [TAG_VERT] = {},
         [TAG_FRAG] = {},
         [TAG_VERT_FUNCS] = {},
-        [TAG_FRAG_FUNCS] = {}
+        [TAG_FRAG_FUNCS] = {},
+        [TAG_LIGHTING_FUNC] = {},
     }
 
     for k,v in pairs(self.model) do
@@ -368,6 +418,14 @@ UnityExport.model =
     unity_blend = function(self)
         local blendOps = UNITY_BLEND_MAP[self[TAG_BLEND_MODE]]
         return string.format("Blend %s %s", blendOps[1], blendOps[2])
+    end,
+
+    unity_lighting = function(self)
+        if type(self) == 'string' then
+            return self
+        else
+            return string.format("float4 outgoingLight = float4(%s, s.Alpha);", self.code)
+        end
     end
 }
 
@@ -375,13 +433,15 @@ UnityExport.model =
 local UNITY_TEXCOORD =
 {
     [TAG_VERT] = "v.texcoord",
-    [TAG_FRAG] = "IN.texcoord"
+    [TAG_FRAG] = "IN.texcoord",
+    [TAG_LIGHTING_FUNC] = "o.IN.texcoord"
 }
 
 local UNITY_COLOR =
 {
     [TAG_VERT] = "v.color",
-    [TAG_FRAG] = "IN.color"
+    [TAG_FRAG] = "IN.color",
+    [TAG_LIGHTING_FUNC] = "o.IN.color"
 }
 
 local UNITY_POSITION =
@@ -399,6 +459,14 @@ local UNITY_POSITION =
         [OBJECT_SPACE] = "IN.objectPos",
         [VIEW_SPACE] = "IN.viewPos",
         [WORLD_SPACE] = "IN.worldPos",
+        [TANGENT_SPACE] = "vec3(0.0, 0.0, 0.0)", -- TODO
+    },
+
+    [TAG_LIGHTING_FUNC] =
+    {
+        [OBJECT_SPACE] = "o.IN.objectPos",
+        [VIEW_SPACE] = "o.IN.viewPos",
+        [WORLD_SPACE] = "o.IN.worldPos",
         [TANGENT_SPACE] = "vec3(0.0, 0.0, 0.0)", -- TODO
     }
 }
@@ -419,6 +487,12 @@ local UNITY_NORMAL =
         [VIEW_SPACE] = "normalize(IN.normal)",
         -- [WORLD_SPACE] *special-case*
         [TANGENT_SPACE] = "vec3(0.0, 0.0, 1.0)",
+    },
+
+    [TAG_LIGHTING_FUNC] =
+    {
+        [VIEW_SPACE] = "normalize(s.Normal)",
+        [TANGENT_SPACE] = "vec3(0.0, 0.0, 1.0)",
     }
 }
 
@@ -438,7 +512,21 @@ local UNITY_VIEW_DIR =
         [VIEW_SPACE] = "normalize(IN.viewDirection)",
         [WORLD_SPACE] = "normalize(_WorldSpaceCameraPos - IN.worldPos)",
         [TANGENT_SPACE] = "normalize(IN.tangentViewDir)",
+    },
+
+    [TAG_LIGHTING_FUNC] =
+    {
+        [OBJECT_SPACE] = "viewToObjectSpace(s.IN, float4(viewDir, 0.0))",
+        [VIEW_SPACE] = "viewDir",
+        [WORLD_SPACE] = "viewToWorldSpace(s.IN, float4(viewDir, 0.0))",
+        [TANGENT_SPACE] = "s.IN.tangentViewDir",
     }
+}
+
+local UNITY_LIGHT_DIR =
+{
+    [VIEW_SPACE] = "gi.light.dir",
+    [WORLD_SPACE] = "mul(transpose(UNITY_MATRIX_V), float4(gi.light.dir, 0.0)).xyz",
 }
 
 local UNITY_CONVERT_SPACE_VERT =
@@ -509,20 +597,48 @@ local UNITY_CONVERT_SPACE =
     [TAG_FRAG] = UNITY_CONVERT_SPACE_FRAG,
 }
 
-
-
 -- Exporters require syntax for various primitive elements to be defined
 UnityExport.syntax =
 {
-    uv = function(self, index) return UNITY_TEXCOORD[self:tag()] end,
+    uv = function(self, index)
+        if self:func() == TAG_LIGHTING_FUNC then
+            return UNITY_TEXCOORD[self:func()]
+        end
 
-    color = function(self, index) return UNITY_COLOR[self:tag()] end,
+        return UNITY_TEXCOORD[self:tag()]
+    end,
+
+    color = function(self, index)
+        if self:func() == TAG_LIGHTING_FUNC then
+            return UNITY_COLOR[self:func()]
+        end
+
+        return UNITY_COLOR[self:tag()]
+    end,
 
     position = function(self, space)
+        if self:func() == TAG_LIGHTING_FUNC then
+            return UNITY_POSITION[self:func()][space]
+        end
+
         return UNITY_POSITION[self:tag()][space]
     end,
 
     normal = function(self, space)
+        if self:func() == TAG_LIGHTING_FUNC then
+            -- TODO: non view space normals
+            if space == OBJECT_SPACE then
+
+            elseif space == WORLD_SPACE and self:tag() == TAG_FRAG then
+                if self.viewModel[TAG_WRITE_NORMAL] then
+                    return "WorldNormalVector(s.IN, float3(0, 0, 1))"
+                else
+                    return "normalize(s.IN.worldNormal)"
+                end
+            end
+
+            return UNITY_NORMAL[self:func()][space]
+        end
 
         -- Exception for object/world space normals in surface shader (due to special behaviour when writing custom normals)
         if space == OBJECT_SPACE and self:tag() == TAG_FRAG then
@@ -539,11 +655,37 @@ UnityExport.syntax =
     end,
 
     viewDir = function(self, space)
+        if self:func() == TAG_LIGHTING_FUNC then
+            -- TODO: non view space normals
+            return UNITY_VIEW_DIR[self:func()][space]
+        end
+
         if space == WORLD_SPACE and self:tag() == TAG_FRAG then
             self.viewModel[TAG_READ_WORLD_POS] = true
         end
 
         return UNITY_VIEW_DIR[self:tag()][space]
+    end,
+
+    lightDir = function(self, space)
+        if self:func() == TAG_LIGHTING_FUNC then
+            return UNITY_LIGHT_DIR[space]
+        end
+        return "half3(0.0, 0.0, 1.0)"
+    end,
+
+    lightType = function(self)
+        if self:func() == TAG_LIGHTING_FUNC then
+            return "0.0"
+        end
+        return "0.0"
+    end,
+
+    lightColor = function(self)
+        if self:func() == TAG_LIGHTING_FUNC then
+            return "gi.light.color"
+        end
+        return "half3(1.0, 1.0, 1.0)"
     end,
 
     convertSpace = function(self, value, from, to, w)
