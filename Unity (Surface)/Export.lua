@@ -238,11 +238,13 @@ UnityExport = class(HLSLEvaluator)
 
 function UnityExport:init()
     HLSLEvaluator.init(self)
-    self:addTemplate("Unity.shader", template)
+    self.requiresGraphJSON = true
+    self:addTemplate('Unity.shader', template)
+    self:addTemplate('Graph.json', '{{{graph_json}}}')
 end
 
 function UnityExport:onExport(name)
-	return name..".shader"
+	return name
 end
 
 function UnityExport:clear()
@@ -709,6 +711,10 @@ UnityExport.syntax =
 
     texture2D = function(self, sampler, uv)
         return string.format("tex2D(%s, %s)", sampler, uv)
+    end,
+
+    unpackNormal = function(self, normalMapRead)
+        return string.format("UnpackNormal(%s)", normalMapRead)
     end,
 
     texture2DLod = function(self, sampler, uv, lod)
