@@ -466,9 +466,9 @@ local UNITY_POSITION =
 
     [TAG_LIGHTING_FUNC] =
     {
-        [OBJECT_SPACE] = "o.IN.objectPos",
-        [VIEW_SPACE] = "o.IN.viewPos",
-        [WORLD_SPACE] = "o.IN.worldPos",
+        [OBJECT_SPACE] = "s.IN.objectPos",
+        [VIEW_SPACE] = "s.IN.viewPos",
+        [WORLD_SPACE] = "s.IN.worldPos",
         [TANGENT_SPACE] = "vec3(0.0, 0.0, 0.0)", -- TODO
     }
 }
