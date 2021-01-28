@@ -344,9 +344,9 @@ UnityExport.model =
 
         if default and type(default) == 'table' then
             local x, y, z, w = default[1] or 0, default[2] or 0, default[3] or 0, default[4] or 0
-            default = string.format('(%s, %s, %s, %s)', x, y, z, w)
+            default = string.format('(%.4f, %.4f, %.4f, %.4f)', x, y, z, w)
         elseif default and type(default) == 'number' then
-            default = string.format('%.2f', default)
+            default = string.format('%.4f', default)
         end
 
         if self.type == TEXTURE2D then
