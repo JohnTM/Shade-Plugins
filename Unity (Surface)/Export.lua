@@ -569,6 +569,7 @@ local UNITY_CONVERT_SPACE_FRAG =
         [VIEW_SPACE] = "float3 objectToViewSpace(Input IN, in float4 p) { return mul(UNITY_MATRIX_MV, p).xyz; }",
         [WORLD_SPACE] = "float3 objectToWorldSpace(Input IN, in float4 p) { return mul(unity_ObjectToWorld, p).xyz; }",
         [TANGENT_SPACE] = "float3 objectToTangentSpace(Input IN, in float4 p) { return p; }",
+        [CLIP_SPACE] = "float3 objectToClipSpace(Input IN, in float4 p) { return mul(UNITY_MATRIX_MVP, p).xyz; }",
     },
 
     [VIEW_SPACE] =
@@ -692,6 +693,7 @@ UnityExport.syntax =
 
     convertSpace = function(self, value, from, to, w)
         if from == to then return value end
+        if to == CLIP_SPACE and from ~= OBJECT_SPACE then return value end
 
         local conversionFunction = nil
 
@@ -749,6 +751,10 @@ UnityExport.syntax =
         else
             return "false"
         end
+    end,
+
+    screenParams = function(self)
+        return "_ScreenParams"
     end,
 
     screenPos = function(self)
