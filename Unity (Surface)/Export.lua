@@ -298,6 +298,13 @@ function UnityExport:addProperty(name, valueType, default, options)
     HLSLEvaluator.addProperty(self, name, valueType, default, options)
 end
 
+function UnityExport:inputStructData()
+    if self:tag() == CS_SURF or self:tag() == CS_FRAG then
+        return "Input", "IN"
+    else
+        return "appdata_full", "v"
+    end
+end
 
 local SURFACE_OUTPUTS =
 {
