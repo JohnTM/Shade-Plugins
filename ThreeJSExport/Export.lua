@@ -144,7 +144,7 @@ THREE.{{name_no_spaces}}Shader = {
         {{/uniforms}}
 
 		{{#vert_funcs}}
-		{{{.}}}
+		"{{{.}}}",
 		{{/vert_funcs}}
 
 		"void main() {",
@@ -229,7 +229,7 @@ THREE.{{name_no_spaces}}Shader = {
         {{/uniforms}}
 
 		{{#frag_funcs}}
-		{{{.}}}
+		"{{{.}}}",
 		{{/frag_funcs}}
 
 		"void main() {",
@@ -313,7 +313,7 @@ function ThreeJSExport:clear()
         self.viewModel[k] = v
     end
 end
-                    
+
 function ThreeJSExport:onExport(name)
 	return name.." Shader"
 end
@@ -366,24 +366,24 @@ ThreeJSExport.model =
         end
 
         if self.type == FLOAT then
-            return string.format('"%s" : { value : %s}', uniformName, default )
+            return string.format('"%s" : { "value" : %s}', uniformName, default )
         elseif self.type == VEC2 then
-            return string.format('"%s" : { value : new THREE.Vector2( %.2f, %.2f ) }', uniformName, default[1], default[2])
+            return string.format('"%s" : { "value" : new THREE.Vector2( %.2f, %.2f ) }', uniformName, default[1], default[2])
         elseif self.type == VEC3 then
-            return string.format('"%s" : { value : new THREE.Vector3( %.2f, %.2f, %.2f ) }', uniformName, default[1], default[2], default[3])
+            return string.format('"%s" : { "value" : new THREE.Vector3( %.2f, %.2f, %.2f ) }', uniformName, default[1], default[2], default[3])
         elseif self.type == VEC4 then
-            return string.format('"%s" : { value : new THREE.Vector4( %.2f, %.2f, %.2f, %.2f ) }', uniformName, default[1], default[2], default[3], default[4])
+            return string.format('"%s" : { "value" : new THREE.Vector4( %.2f, %.2f, %.2f, %.2f ) }', uniformName, default[1], default[2], default[3], default[4])
         end
     end,
     --
     -- -- Convert vertex outputs into shader code
-    -- unity_vertex_output = function(self)
-    --     if type(self) == 'string' then
-    --         return self
-    --     elseif self.input_name == TAG_INPUT_VERTEX_OFFSET then
-    --         return string.format("v.vertex.xyz += %s;", self.code)
-    --     end
-    -- end,
+    tree_vertex_output = function(self)
+        if type(self) == 'string' then
+            return self
+        elseif self.input_name == TAG_INPUT_VERTEX_OFFSET then
+            return string.format("v.vertex.xyz += %s;", self.code)
+        end
+    end,
 
     three_uniform = function(self)
         return string.format("uniform %s %s;", self.value_type, self.name)
@@ -499,10 +499,10 @@ ThreeJSExport.syntax =
 
     color = function(self, index) return THREE_COLOR[self:tag()] end,
 
-    -- position = function(self, space)
-    --     return UNITY_POSITION[self:tag()][space]
-    -- end,
-    --
+    position = function(self, space)
+        return THREE_POSITION[self:tag()][space]
+    end,
+
     -- normal = function(self, space)
     --
     --     -- Exception for object/world space normals in surface shader (due to special behaviour when writing custom normals)
@@ -527,14 +527,14 @@ ThreeJSExport.syntax =
     --     return UNITY_VIEW_DIR[self:tag()][space]
     -- end,
     --
-    -- texture2D = function(self, sampler, uv)
-    --     return string.format("tex2D(%s, %s)", sampler, uv)
-    -- end,
-    --
-    -- texture2DLod = function(self, sampler, uv, lod)
-    --     return string.format("tex2Dlod(%s, %s)", sampler, uv)
-    -- end,
-    --
+    texture2D = function(self, sampler, uv)
+        return string.format("texture2D(%s, %s)", sampler, uv)
+    end,
+
+    texture2DLod = function(self, sampler, uv, lod)
+        return string.format("texture2DLod(%s, %s)", sampler, uv)
+    end,
+
     -- textureSize = function(self, tex)
     --     return "vec2(0.0, 0.0)"
     -- end,
@@ -589,11 +589,11 @@ ThreeJSExport.syntax =
     -- barycentric = function(self)
     --     return "vec3(0.0, 0.0, 0.0)"
     -- end,
-    --
-    -- parallax = function(self, uv)
-    --     local tangentViewDir = self:viewDir(TANGENT_SPACE)
-    --     return string.format("parallax(%s, %s)", uv, tangentViewDir)
-    -- end
+
+    parallax = function(self, uv)
+        local tangentViewDir = self:viewDir(TANGENT_SPACE)
+        return string.format("parallax(%s, %s)", uv, tangentViewDir)
+    end
 }
 
 return ThreeJSExport
